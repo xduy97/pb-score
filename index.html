@@ -19,18 +19,31 @@
 <style>
 :root {
   --bg: #05070f;
-  --team-alpha-a: #1656b8; --team-alpha-b: #041026;
-  --team-beta-a: #b82c23;  --team-beta-b: #240504;
-  --lime: #d7ff4e;
+  --team0-a: #1656b8; --team0-b: #041026;
+  --team1-a: #b82c23; --team1-b: #240504;
+  --accent: #d7ff4e; --accent-ink: #000; --accent-glow: rgba(215,255,78,.6);
   --text: #f4f7fc;
-  --muted: rgba(244,247,252,.4);
-  --panel: #0e1526;
-  --panel-line: #1d2745;
-  --danger: #ff3d3d;
+  --muted: rgba(244,247,252,.42);
+  --panel: #0e1526; --panel-line: #1d2745; --field: #05070f;
+  --bar: #0a0d1a; --bar-line: #141930;
+  --danger: #ff3d3d; --ok: #4ef584;
   --safe-t: env(safe-area-inset-top,0px);
   --safe-b: env(safe-area-inset-bottom,0px);
   --safe-l: env(safe-area-inset-left,0px);
   --safe-r: env(safe-area-inset-right,0px);
+}
+/* Chế độ nắng: sân ngoài trời buổi trưa. Nền sáng, chữ đen, nhấn bằng khối đen đặc
+   thay vì màu neon — neon trên nền sáng gần như biến mất dưới nắng gắt. */
+body.sun {
+  --bg: #ffffff;
+  --team0-a: #0a3fa8; --team0-b: #cadcff;
+  --team1-a: #b3120a; --team1-b: #ffd4d0;
+  --accent: #0d1117; --accent-ink: #fff; --accent-glow: rgba(0,0,0,.35);
+  --text: #06080f;
+  --muted: rgba(6,8,15,.55);
+  --panel: #ffffff; --panel-line: #c9d2e2; --field: #f2f5fa;
+  --bar: #e9eef6; --bar-line: #c9d2e2;
+  --danger: #c40b0b; --ok: #0a7a34;
 }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
 html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg); color:var(--text);
@@ -39,153 +52,191 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg);
   display:flex; flex-direction:column; }
 
 #court { flex:1 1 auto; display:flex; flex-direction:row; min-height:0; position:relative; }
-#courtDivider { position:absolute; left:50%; top:0; bottom:0; width:2px; background:rgba(255,255,255,.15); z-index:5; }
+#courtDivider { position:absolute; left:50%; top:0; bottom:0; width:2px; background:rgba(128,128,128,.28); z-index:5; }
 
 .half { flex:1; position:relative; display:flex; align-items:center; justify-content:center;
-  overflow:hidden; transition:all .3s cubic-bezier(0.16, 1, 0.3, 1); }
-.half.side-left { 
-  background: radial-gradient(100% 120% at 0% 50%, var(--team-alpha-a), var(--team-alpha-b) 85%); 
-}
-.half.side-right { 
-  background: radial-gradient(100% 120% at 100% 50%, var(--team-beta-a), var(--team-beta-b) 85%); 
-}
+  overflow:hidden; transition:box-shadow .3s cubic-bezier(0.16,1,0.3,1); }
+.half[data-team="0"] { --ca:var(--team0-a); --cb:var(--team0-b); }
+.half[data-team="1"] { --ca:var(--team1-a); --cb:var(--team1-b); }
+#halfLeft  { background: radial-gradient(100% 120% at 0% 50%, var(--ca), var(--cb) 85%); }
+#halfRight { background: radial-gradient(100% 120% at 100% 50%, var(--ca), var(--cb) 85%); }
+body.sun #halfLeft  { background: linear-gradient(90deg, var(--cb), #fff 78%); border-right:1px solid var(--panel-line); }
+body.sun #halfRight { background: linear-gradient(270deg, var(--cb), #fff 78%); }
 
-.half.serving { box-shadow: inset 0 0 0 12px var(--lime), inset 0 0 60px rgba(215,255,78,.2); }
+.half.serving { box-shadow: inset 0 0 0 12px var(--accent), inset 0 0 60px var(--accent-glow); }
 .half.flash-undo { animation: flashRed .35s ease; }
-@keyframes flashRed { 0% { box-shadow: inset 0 0 0 20px var(--danger); } 100% { box-shadow: inset 0 0 0 0px transparent; } }
+@keyframes flashRed { 0% { box-shadow: inset 0 0 0 20px var(--danger); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
 
-.teamname { position:absolute; top:20px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
-  font-size:clamp(12px, 2vw, 18px); color:var(--text); opacity:0.85; z-index:3;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.half.side-left .teamname { left:25px; }
-.half.side-right .teamname { right:25px; }
+.teamname { position:absolute; top:18px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
+  font-size:clamp(12px,2vw,18px); z-index:3; display:flex; align-items:center; gap:8px; }
+#halfLeft .teamname { left:25px; }
+#halfRight .teamname { right:25px; flex-direction:row-reverse; }
+.gameDots { display:flex; gap:4px; }
+.gameDot { width:9px; height:9px; border-radius:50%; border:1.5px solid currentColor; opacity:.45; }
+.gameDot.won { background:currentColor; opacity:1; }
 
 .score { font-family:'Teko',sans-serif; font-weight:600; line-height:.7; letter-spacing:-2px;
-  font-size:clamp(120px,35vw,320px); color:var(--text); text-shadow:0 10px 25px rgba(0,0,0,.7);
-  z-index:2; margin:0; padding:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  font-size:clamp(120px,35vw,320px); text-shadow:0 10px 25px rgba(0,0,0,.55);
+  z-index:2; display:flex; align-items:center; justify-content:center; pointer-events:none;
+  font-variant-numeric:tabular-nums; transition:transform .18s cubic-bezier(.2,1.6,.4,1); }
+body.sun .score { text-shadow:none; }
+.score.bump { transform:scale(1.09); }
 
-.keyhint { position:absolute; bottom:20px; font-size:11px; color:rgba(255,255,255,.2); z-index:2; font-weight:500; }
-.half.side-left .keyhint { right:25px; }
-.half.side-right .keyhint { left:25px; }
+.keyhint { position:absolute; bottom:16px; font-size:11px; color:var(--muted); z-index:2; font-weight:500; }
+#halfLeft .keyhint { right:25px; }
+#halfRight .keyhint { left:25px; }
 
-.holdBar { position:absolute; bottom:0; left:0; height:6px; width:0%; background:#fff; opacity:.9; z-index:6; pointer-events:none; }
+/* Dải gọi điểm 3 số — thứ người chơi thật sự hô trước mỗi pha giao */
+#callStrip { position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:8;
+  display:flex; flex-direction:column; align-items:center; gap:4px; pointer-events:none; }
+#callNums { display:flex; align-items:center; gap:9px; background:rgba(0,0,0,.55); backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.14); border-radius:999px; padding:6px 16px;
+  font-family:'Teko',sans-serif; font-size:clamp(22px,3.4vw,34px); font-weight:600; line-height:1;
+  letter-spacing:1px; font-variant-numeric:tabular-nums; color:#fff; }
+body.sun #callNums { background:#fff; border-color:var(--panel-line); color:#000; box-shadow:0 2px 10px rgba(0,0,0,.12); }
+#callDot { width:11px; height:11px; border-radius:50%; }
+#callNums .sep { opacity:.35; }
+#pointFlag { font-size:11px; font-weight:900; letter-spacing:1.6px; padding:3px 11px; border-radius:6px;
+  background:var(--accent); color:var(--accent-ink); display:none; }
+#pointFlag.show { display:block; animation:blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity:.35; } }
 
 #statusbar { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
-  padding:10px 20px; font-size:12px; color:rgba(255,255,255,.4); gap:8px; background:#0a0d1a; border-top:1px solid #141930; }
-#statusbar .grp { display:flex; align-items:center; gap:14px; }
-#gp-status.connected { color:#4ef584; font-weight:600; }
-#wl-status.active { color:#4ef584; }
-#wl-status { background:none; border:none; padding:0; margin:0; font:inherit; color:rgba(255,255,255,.4); cursor:pointer; transition:color .2s; }
-#wl-status:hover { color:rgba(255,255,255,.7); }
-#wl-status.active:hover { color:#4ef584; }
-#settingsBtn { background:none; border:none; color:rgba(255,255,255,.6); font-size:18px; cursor:pointer; padding:4px; transition:color .2s; }
-#settingsBtn:hover { color:#fff; }
+  padding:9px 16px; font-size:12px; color:var(--muted); gap:8px; background:var(--bar); border-top:1px solid var(--bar-line); }
+#statusbar .grp { display:flex; align-items:center; gap:12px; min-width:0; }
+#gp-status.connected { color:var(--ok); font-weight:600; }
+#clock { font-variant-numeric:tabular-nums; font-weight:600; }
+.linkBtn { background:none; border:none; padding:0; margin:0; font:inherit; color:var(--muted); cursor:pointer; }
+.linkBtn:hover { color:var(--text); }
+.linkBtn.active { color:var(--ok); }
+#formatTag { white-space:nowrap; }
+.iconBtn { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:4px; border-radius:6px; transition:all .2s; }
+.iconBtn:hover { color:var(--text); }
+.iconBtn.active { color:var(--accent-ink); background:var(--accent); }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
 @media (orientation:portrait){
   #court { flex-direction:column; }
   #courtDivider { left:0; right:0; top:50%; bottom:auto; height:2px; width:auto; }
-  .half.side-left .teamname, .half.side-right .teamname { left:20px; top:20px; right:auto; }
-  .half.side-left .serverBadge, .half.side-right .serverBadge { left:20px; right:auto; }
+  #halfLeft  { background: radial-gradient(120% 100% at 50% 0%, var(--ca), var(--cb) 85%); }
+  #halfRight { background: radial-gradient(120% 100% at 50% 100%, var(--ca), var(--cb) 85%); }
+  body.sun #halfLeft  { background: linear-gradient(180deg, var(--cb), #fff 78%); border-right:none; border-bottom:1px solid var(--panel-line); }
+  body.sun #halfRight { background: linear-gradient(0deg, var(--cb), #fff 78%); }
+  #halfLeft .teamname, #halfRight .teamname { left:18px; right:auto; top:14px; flex-direction:row; }
+  #halfLeft .serverBadge, #halfRight .serverBadge { left:18px; right:auto; }
+  #callStrip { top:auto; bottom:calc(50% - 26px); }
 }
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+
+.bg-court-mesh { position:absolute; inset:12px; display:flex; flex-direction:column; gap:8px; pointer-events:none; z-index:1; }
+.bg-cell { flex:1; border:2px dashed rgba(128,128,128,.18); border-radius:8px; transition:all .4s ease; }
+.bg-cell.active-glow { border:4px solid var(--accent); box-shadow: inset 0 0 40px var(--accent-glow); }
+.bg-court-mesh.single .bg-cell { border-style:solid; }
+
+.playerTags { position:absolute; top:46px; display:flex; flex-direction:column; gap:6px; z-index:3; }
+#halfLeft .playerTags { left:25px; }
+#halfRight .playerTags { right:25px; align-items:flex-end; }
+.playerTag { display:inline-flex; align-items:center; gap:6px; font-size:clamp(11px,1.6vw,14px); font-weight:700;
+  padding:4px 10px; border-radius:20px; background:rgba(0,0,0,.32); color:var(--text); opacity:.72;
+  white-space:nowrap; border:1px solid rgba(128,128,128,.22); transition:all .25s ease; }
+body.sun .playerTag { background:rgba(255,255,255,.85); }
+.playerTag .tag-s { font-weight:900; }
+.playerTag.serving-now { background:var(--accent); color:var(--accent-ink); opacity:1; border-color:var(--accent); }
+.playerTag.receiving-now { opacity:1; border-color:var(--accent); }
+.playerTag.empty { opacity:.4; font-style:italic; font-weight:500; }
+.playerTag.hidden { display:none; }
+
+.serverBadge { position:absolute; z-index:7; font-weight:900; font-size:clamp(13px,2.1vw,19px);
+  color:var(--accent-ink); background:var(--accent); padding:6px 14px; border-radius:10px;
+  box-shadow:0 6px 16px rgba(0,0,0,.45); white-space:nowrap; pointer-events:none;
+  opacity:0; transform:translateY(-100%) scale(.9);
+  transition: top .45s cubic-bezier(0.16,1,0.3,1), opacity .3s ease, transform .3s ease; }
+.serverBadge.show { opacity:1; transform:translateY(-100%) scale(1); }
+.serverBadge.quad-top { top:46%; }
+.serverBadge.quad-bottom { top:93%; }
+#halfLeft .serverBadge { left:20px; }
+#halfRight .serverBadge { right:20px; }
+
+.modal { position:fixed; inset:0; background:rgba(0,0,0,.72); display:none; align-items:center; justify-content:center; z-index:60; padding:18px; }
+body.sun .modal { background:rgba(40,50,70,.45); }
+.modal.show { display:flex; }
+.sheet { background:var(--panel); border:1px solid var(--panel-line); border-radius:18px; padding:22px; width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,.45); }
+#settings, #historyPanel { max-width:480px; }
+#lineupPanel, #resultPanel { max-width:560px; }
+.sheet h2 { margin:0 0 6px; font-size:20px; font-weight:800; }
+.sheet h3 { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin:22px 0 10px; font-weight:700; }
+.row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:11px 0; }
+select, input[type=text], input[type=range] { background:var(--field); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:9px; font-size:14px; }
+select { min-width:150px; }
+.btn { background:var(--field); color:var(--text); border:1px solid var(--panel-line); border-radius:10px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+.btn.wide { width:100%; margin-top:8px; }
+.btn.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.btn.danger { background:var(--danger); color:#fff; border-color:var(--danger); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+small.note { color:var(--muted); display:block; margin-top:6px; font-size:11.5px; line-height:1.6; }
+kbd { background:var(--field); border:1px solid var(--panel-line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font:600 11px 'Inter',monospace; }
+#toast { position:fixed; bottom:calc(22px + var(--safe-b)); left:50%; transform:translateX(-50%); background:#000; color:#fff;
+  padding:11px 22px; border-radius:30px; font-size:14px; font-weight:600; opacity:0; transition:opacity .25s;
+  pointer-events:none; z-index:90; max-width:88vw; text-align:center; }
+#toast.show { opacity:.96; }
+
+/* Kết quả ván / trận */
+#resultPanel { text-align:center; }
+#resultKicker { font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:800; }
+#resultWinner { font-size:clamp(24px,6vw,34px); font-weight:800; margin:6px 0 2px; }
+#resultScore { font-family:'Teko',sans-serif; font-size:clamp(46px,13vw,80px); line-height:1; font-weight:600; font-variant-numeric:tabular-nums; }
+#resultGames { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.gameChip { background:var(--field); border:1px solid var(--panel-line); border-radius:8px; padding:5px 11px; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.gameChip.win { border-color:var(--accent); }
+#resultActions { display:flex; flex-direction:column; gap:8px; margin-top:20px; }
+.statTable { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+.statTable th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); padding:5px 6px; font-weight:700; }
+.statTable td { padding:7px 6px; border-top:1px solid var(--panel-line); font-variant-numeric:tabular-nums; }
+.statTable td:first-child { text-align:left; font-weight:600; }
+.statTable th:not(:first-child), .statTable td:not(:first-child) { text-align:center; }
+
+/* Hội ý */
+#timeoutOverlay { position:fixed; inset:0; background:rgba(0,0,0,.86); display:none; z-index:85;
+  flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
+#timeoutOverlay.show { display:flex; }
+#toTeam { font-size:14px; letter-spacing:2px; text-transform:uppercase; font-weight:800; color:var(--muted); }
+#toClock { font-family:'Teko',sans-serif; font-size:clamp(90px,26vw,190px); line-height:.85; font-variant-numeric:tabular-nums; }
 
 #resetOverlay { position:fixed; inset:0; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; z-index:80; flex-direction:column; gap:14px; }
 #resetOverlay.show { display:flex; }
 #resetRing { width:96px; height:96px; transform:rotate(-90deg); }
 #resetRing circle { fill:none; stroke-width:8; }
-#resetRing .track { stroke:rgba(255,255,255,0.1); }
+#resetRing .track { stroke:rgba(128,128,128,.25); }
 #resetRing .fill { stroke:var(--danger); stroke-linecap:round; stroke-dasharray:264; stroke-dashoffset:264; transition:stroke-dashoffset .05s linear; }
-#resetOverlay span { font-weight:700; letter-spacing:1px; color:#fff; font-size:15px; text-align:center; }
+#resetOverlay span { font-weight:700; letter-spacing:1px; color:#fff; font-size:15px; }
 
-#overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:60; padding:20px; }
-#overlay.show { display:flex; }
-#settings { background:var(--panel); border:1px solid var(--panel-line); border-radius:18px; padding:25px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,0.5); }
-#settings h2 { margin:0 0 6px; font-size:20px; font-weight:800; }
-#settings h3 { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin:24px 0 12px; font-weight:700; }
-.row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:12px 0; }
-select, input[type=text], input[type=range] { background:#05070f; color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:10px; font-size:14px; }
-select { min-width:140px; }
-.btn { background:#161f3a; color:var(--text); border:1px solid var(--panel-line); border-radius:10px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
-.btn.wide { width:100%; margin-top:8px; }
-.btn.primary { background:var(--lime); color:#000; border-color:var(--lime); }
-.btn.danger { background:var(--danger); color:#fff; border-color:var(--danger); }
-small.note { color:var(--muted); display:block; margin-top:6px; font-size:11.5px; line-height:1.6; }
-#toast { position:fixed; bottom:calc(24px + var(--safe-b)); left:50%; transform:translateX(-50%); background:#000; color:#fff; padding:12px 24px; border-radius:30px; font-size:14px; font-weight:600; opacity:0; transition:opacity .25s; pointer-events:none; z-index:70; box-shadow:0 8px 20px rgba(0,0,0,0.4); }
-#toast.show { opacity:.95; }
-
-.bg-court-mesh { position:absolute; inset:12px; display:flex; flex-direction:column; gap:8px; pointer-events:none; z-index:1; }
-.bg-cell { flex:1; border:2px dashed rgba(255, 255, 255, 0.08); border-radius:8px; position:relative; transition:all 0.4s ease; background:rgba(0, 0, 0, 0.15); }
-.bg-cell.active-glow { border:4px solid var(--lime); background:radial-gradient(circle at center, rgba(215, 255, 78, 0.3) 0%, rgba(0, 0, 0, 0) 80%);
-  box-shadow: inset 0 0 40px rgba(215, 255, 78, 0.35), 0 0 20px rgba(215, 255, 78, 0.15); animation:pulseBg 1.8s infinite alternate; }
-
-@keyframes pulseBg {
-  0% { opacity:0.8; box-shadow: inset 0 0 30px rgba(215, 255, 78, 0.25); }
-  100% { opacity:1; box-shadow: inset 0 0 50px rgba(215, 255, 78, 0.5); }
-}
-
-/* ===== Player tags on court ===== */
-.playerTags { position:absolute; top:48px; display:flex; flex-direction:column; gap:6px; z-index:3; }
-.half.side-left .playerTags { left:25px; }
-.half.side-right .playerTags { right:25px; align-items:flex-end; }
-.playerTag { font-size:clamp(11px,1.6vw,14px); font-weight:700; padding:4px 10px; border-radius:20px;
-  background:rgba(0,0,0,.35); color:rgba(244,247,252,.55); letter-spacing:.3px; white-space:nowrap;
-  border:1px solid rgba(255,255,255,.08); transition:all .25s ease; }
-.playerTag .tag-s { opacity:.6; font-weight:800; margin-right:5px; }
-.playerTag.serving-now { background:var(--lime); color:#000; box-shadow:0 0 16px rgba(215,255,78,.6); transform:scale(1.05); }
-.playerTag.serving-now .tag-s { opacity:1; color:#000; }
-.playerTag.empty { opacity:.35; font-style:italic; font-weight:500; }
-
-/* ===== Floating server badge ===== */
-.serverBadge { position:absolute; z-index:7; font-weight:900; font-size:clamp(13px,2.1vw,19px);
-  color:#000; background:var(--lime); padding:6px 14px; border-radius:10px; letter-spacing:.2px;
-  box-shadow:0 6px 16px rgba(0,0,0,.5); white-space:nowrap; pointer-events:none;
-  opacity:0; transform:translateY(-100%) scale(.9);
-  transition: top .45s cubic-bezier(0.16,1,0.3,1), bottom .45s cubic-bezier(0.16,1,0.3,1),
-              opacity .3s ease, transform .3s ease; }
-.serverBadge.show { opacity:1; transform:translateY(-100%) scale(1); }
-.serverBadge.quad-top { top:46%; bottom:auto; }
-.serverBadge.quad-bottom { top:93%; bottom:auto; }
-.half.side-left .serverBadge { left:20px; }
-.half.side-right .serverBadge { right:20px; }
-
-#lineupBtn { background:none; border:none; color:rgba(255,255,255,.6); font-size:18px; cursor:pointer; padding:4px; transition:color .2s; }
-#lineupBtn:hover { color:#fff; }
-
-#flipBtn { background:none; border:none; color:rgba(255,255,255,.6); font-size:18px; cursor:pointer; padding:4px; transition:all .2s; border-radius:6px; }
-#flipBtn:hover { color:#fff; }
-#flipBtn.active { color:#000; background:var(--lime); box-shadow:0 0 12px rgba(215,255,78,.5); }
-
-.memberDot, .tag-dot, .slotDot { display:inline-block; width:10px; height:10px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
+.memberDot, .tag-dot, .slotDot { display:inline-block; width:10px; height:10px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 0 1px rgba(128,128,128,.4); }
 .memberRow .memberDot { margin-right:8px; }
-.playerTag { display:inline-flex; align-items:center; gap:6px; }
 .tag-dot { width:8px; height:8px; }
-.slotCard .slotName { display:flex; align-items:center; gap:8px; }
-
-/* ===== Lineup overlay ===== */
-#lineupOverlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:65; padding:20px; }
-#lineupOverlay.show { display:flex; }
-#lineupPanel { background:var(--panel); border:1px solid var(--panel-line); border-radius:18px; padding:25px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,0.5); }
-#lineupPanel h2 { margin:0 0 4px; font-size:20px; font-weight:800; }
-#lineupPanel h3 { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin:22px 0 10px; font-weight:700; }
-
 .memberAddRow { display:flex; gap:8px; margin-top:8px; }
-.memberAddRow input { flex:1; }
+.memberAddRow input { flex:1; min-width:0; }
 #memberList { display:flex; flex-direction:column; gap:6px; margin-top:10px; max-height:150px; overflow-y:auto; }
-.memberRow { display:flex; align-items:center; justify-content:space-between; background:#05070f; border:1px solid var(--panel-line); border-radius:8px; padding:8px 12px; font-size:13px; }
+.memberRow { display:flex; align-items:center; justify-content:space-between; background:var(--field); border:1px solid var(--panel-line); border-radius:8px; padding:7px 11px; font-size:13px; }
 .memberRow button { background:none; border:none; color:var(--danger); font-size:16px; cursor:pointer; padding:2px 6px; }
 .memberEmpty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
 
-/* Slot Grid */
 .slotGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
-.slotCard { position:relative; background:#05070f; border:2px solid var(--panel-line); border-radius:12px; padding:12px; cursor:pointer; transition:all .15s ease; }
-.slotCard .slotTeam { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; opacity:.55; margin-bottom:4px; }
-.slotCard .slotTag { display:inline-block; font-size:10px; font-weight:800; background:var(--panel-line); color:var(--text); padding:2px 7px; border-radius:5px; margin-bottom:6px; }
-.slotCard .slotTag.team-left { background: var(--team-alpha-a); color: #fff; }
-.slotCard .slotTag.team-right { background: var(--team-beta-a); color: #fff; }
-.slotCard .slotName { font-size:15px; font-weight:700; min-height:20px; }
+.slotCard { position:relative; background:var(--field); border:2px solid var(--panel-line); border-radius:12px; padding:11px; cursor:pointer; transition:all .15s ease; }
+.slotCard.hidden { display:none; }
+.slotCard .slotTeam { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:4px; }
+.slotCard .slotTag { display:inline-block; font-size:10px; font-weight:800; background:var(--panel-line); padding:2px 7px; border-radius:5px; margin-bottom:6px; }
+.slotCard[data-team="0"] .slotTag { background:var(--team0-a); color:#fff; }
+.slotCard[data-team="1"] .slotTag { background:var(--team1-a); color:#fff; }
+.slotCard .slotName { font-size:15px; font-weight:700; min-height:20px; display:flex; align-items:center; gap:8px; }
 .slotCard .slotName.empty { color:var(--muted); font-weight:500; font-style:italic; }
-.slotCard.focused { border-color:var(--lime); box-shadow:0 0 0 3px rgba(215,255,78,.25), 0 0 20px rgba(215,255,78,.25); }
+.slotCard .slotWhere { font-size:10.5px; color:var(--muted); margin-top:5px; }
+.slotCard.focused { border-color:var(--accent); }
 .slotCard select { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
-small.note.tight { margin-top:10px; }
+
+.histRow { background:var(--field); border:1px solid var(--panel-line); border-radius:10px; padding:10px 12px; margin-top:8px; font-size:13px; }
+.histRow .hTop { display:flex; justify-content:space-between; gap:10px; font-weight:700; }
+.histRow .hSub { color:var(--muted); font-size:11.5px; margin-top:3px; font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -193,143 +244,180 @@ small.note.tight { margin-top:10px; }
   <div id="court">
     <div id="courtDivider"></div>
 
-    <div class="half side-left" id="halfLeft" data-side="left">
-      <div class="bg-court-mesh">
-        <div class="bg-cell" id="cellLeftTop"></div>
-        <div class="bg-cell" id="cellLeftBottom"></div>
+    <div id="callStrip">
+      <div id="callNums"><span id="callDot"></span><span id="callText">0 · 0 · 2</span></div>
+      <div id="pointFlag">GAME POINT</div>
+    </div>
+
+    <div class="half" id="halfLeft" data-screen="left">
+      <div class="bg-court-mesh" id="meshLeft">
+        <div class="bg-cell" data-cell="left-top"></div>
+        <div class="bg-cell" data-cell="left-bottom"></div>
       </div>
-      <div class="teamname" id="nameLeftEl">ĐỘI ALPHA</div>
+      <div class="teamname"><span id="nameLeftEl">ĐỘI ALPHA</span><span class="gameDots" id="dotsLeftEl"></span></div>
       <div class="playerTags" id="playerTagsLeftEl"></div>
       <div class="serverBadge" id="serverBadgeLeftEl"></div>
       <div class="score" id="scoreLeftEl">0</div>
       <div class="keyhint" id="keyhintLeft">Y ghi điểm</div>
-      <div class="holdBar" id="holdBarLeft"></div>
     </div>
 
-    <div class="half side-right" id="halfRight" data-side="right">
-      <div class="bg-court-mesh">
-        <div class="bg-cell" id="cellRightTop"></div>
-        <div class="bg-cell" id="cellRightBottom"></div>
+    <div class="half" id="halfRight" data-screen="right">
+      <div class="bg-court-mesh" id="meshRight">
+        <div class="bg-cell" data-cell="right-top"></div>
+        <div class="bg-cell" data-cell="right-bottom"></div>
       </div>
-      <div class="teamname" id="nameRightEl">ĐỘI BETA</div>
+      <div class="teamname"><span id="nameRightEl">ĐỘI BETA</span><span class="gameDots" id="dotsRightEl"></span></div>
       <div class="playerTags" id="playerTagsRightEl"></div>
       <div class="serverBadge" id="serverBadgeRightEl"></div>
       <div class="score" id="scoreRightEl">0</div>
       <div class="keyhint" id="keyhintRight">A ghi điểm</div>
-      <div class="holdBar" id="holdBarRight"></div>
     </div>
   </div>
 
   <div id="statusbar">
     <div class="grp">
-      <span id="gp-status">🎮 Chưa kết nối Joy-Con</span>
-      <button id="wl-status" title="Bấm để bật/tắt giữ màn hình luôn sáng">☀️ Màn hình: tự khoá</button>
+      <span id="gp-status">🎮 Chưa kết nối</span>
+      <button class="linkBtn" id="wl-status" title="Giữ màn hình luôn sáng">☀️ tự khoá</button>
     </div>
     <div class="grp">
-      <span id="modeTag">Traditional · đến 11</span>
-      <button id="flipBtn" title="Xoay màn hình cho người trong sân xem (sau khi đặt máy xuống bàn)" aria-label="Xoay màn hình">🔄</button>
-      <button id="lineupBtn" title="Đội hình / Thành viên" aria-label="Đội hình và thành viên">👥</button>
-      <button id="settingsBtn" aria-label="Cài đặt">⚙️</button>
+      <span id="clock">00:00</span>
+      <button class="linkBtn" id="toBtn" title="Hội ý">⏱ 2·2</button>
+      <span id="formatTag">Ván 1 · đến 11</span>
+      <button class="iconBtn" id="sunBtn" title="Chế độ nắng" aria-label="Chế độ nắng">🌞</button>
+      <button class="iconBtn" id="flipBtn" title="Xoay hiển thị" aria-label="Xoay hiển thị">🔄</button>
+      <button class="iconBtn" id="lineupBtn" title="Đội hình" aria-label="Đội hình">👥</button>
+      <button class="iconBtn" id="settingsBtn" title="Cài đặt" aria-label="Cài đặt">⚙️</button>
     </div>
   </div>
 </div>
 
 <div id="resetOverlay">
   <svg id="resetRing" viewBox="0 0 96 96"><circle class="track" cx="48" cy="48" r="42"/><circle class="fill" id="resetRingFill" cx="48" cy="48" r="42"/></svg>
-  <span id="resetOverlayText">GIỮ NÚT "+" ĐỂ RESET TRẬN ĐẤU…</span>
+  <span>GIỮ "+" ĐỂ BẮT ĐẦU TRẬN MỚI…</span>
 </div>
 
-<div id="overlay">
-  <div id="settings">
-    <h2>Cài đặt trận đấu</h2>
-    <h3>Luật tính điểm</h3>
+<div id="timeoutOverlay">
+  <div id="toTeam">HỘI Ý</div>
+  <div id="toClock">1:00</div>
+  <button class="btn primary" id="toEndBtn">Vào sân</button>
+</div>
+
+<div class="modal" id="resultOverlay">
+  <div class="sheet" id="resultPanel">
+    <div id="resultKicker">KẾT THÚC VÁN</div>
+    <div id="resultWinner">—</div>
+    <div id="resultScore">0–0</div>
+    <div id="resultGames"></div>
+    <div id="resultStats"></div>
+    <div id="resultActions">
+      <button class="btn primary" id="btnNextGame">Ván tiếp theo</button>
+      <button class="btn" id="btnPlayOn">Đánh tiếp với tỉ số này</button>
+      <button class="btn" id="btnResultUndo">Hoàn tác điểm cuối</button>
+      <button class="btn" id="btnShare">Chia sẻ kết quả</button>
+      <button class="btn danger" id="btnResultNew">Trận mới</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="overlay">
+  <div class="sheet" id="settings">
+    <h2>Cài đặt</h2>
+
+    <h3>Thể thức</h3>
+    <div class="row"><label for="playersPerTeam">Số người mỗi đội</label>
+      <select id="playersPerTeam"><option value="2">Đôi (2 người)</option><option value="1">Đơn (1 người)</option></select>
+    </div>
+    <div class="row"><label for="bestOf">Thể thức trận</label>
+      <select id="bestOf"><option value="1">1 ván</option><option value="3">2 thắng 3</option><option value="5">3 thắng 5</option></select>
+    </div>
     <div class="row"><label for="scoringMode">Kiểu tính điểm</label>
-      <select id="scoringMode">
-        <option value="traditional">Truyền thống (side-out)</option>
-        <option value="rally">Rally scoring</option>
-      </select>
+      <select id="scoringMode"><option value="traditional">Truyền thống (side-out)</option><option value="rally">Rally scoring</option></select>
     </div>
     <div class="row"><label for="playTo">Chơi đến</label>
-      <select id="playTo">
-        <option value="11">11 điểm</option>
-        <option value="15">15 điểm</option>
-        <option value="21">21 điểm</option>
-      </select>
+      <select id="playTo"><option value="11">11 điểm</option><option value="15">15 điểm</option><option value="21">21 điểm</option></select>
     </div>
-    <div class="row"><label for="winByTwo">Phải cách biệt 2 điểm</label><input type="checkbox" id="winByTwo" checked></div>
-    <div class="row"><label for="autoSwapMidGame">Tự đổi sân giữa ván (đúng luật)</label><input type="checkbox" id="autoSwapMidGame"></div>
+    <div class="row"><label for="winByTwo">Cách biệt 2 điểm</label><input type="checkbox" id="winByTwo" checked></div>
+    <div class="row"><label for="midSwitch">Đổi sân giữa ván</label>
+      <select id="midSwitch"><option value="off">Tắt</option><option value="deciding">Chỉ ván quyết định</option><option value="every">Mọi ván</option></select>
+    </div>
+    <small class="note">Theo luật: đổi sân và đổi lượt giao đầu sau mỗi ván. Ván quyết định đổi sân khi có đội chạm nửa số điểm cộng một (6 với ván 11, 8 với ván 15).</small>
 
     <h3>Đội</h3>
-    <div class="row"><label for="nameLeftInput">Tên đội trái</label><input type="text" id="nameLeftInput" placeholder="Đội Alpha"></div>
-    <div class="row"><label for="nameRightInput">Tên đội phải</label><input type="text" id="nameRightInput" placeholder="Đội Beta"></div>
+    <div class="row"><label for="name0Input">Tên đội xanh</label><input type="text" id="name0Input" maxlength="20"></div>
+    <div class="row"><label for="name1Input">Tên đội đỏ</label><input type="text" id="name1Input" maxlength="20"></div>
 
-    <h3>Giọng đọc điểm (TTS)</h3>
+    <h3>Giọng đọc điểm</h3>
     <div class="row"><label for="ttsEnabled">Bật đọc điểm</label><input type="checkbox" id="ttsEnabled" checked></div>
     <div class="row"><label for="ttsRate">Tốc độ</label><input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1"></div>
-    <div class="row"><label for="ttsVoice">Giọng đọc</label><select id="ttsVoice"></select></div>
+    <div class="row"><label for="ttsVoice">Giọng</label><select id="ttsVoice"></select></div>
 
     <h3>Gán nút Joy-Con</h3>
-    <div class="keymapGrid">
-      <div class="row"><label>Ghi điểm Trái (Y)</label><button class="btn" data-action="left" id="map-left">—</button></div>
-      <div class="row"><label>Ghi điểm Phải (A)</label><button class="btn" data-action="right" id="map-right">—</button></div>
-      <div class="row"><label>Đổi đội giao / đổi tay giao (X)</label><button class="btn" data-action="fault" id="map-fault">—</button></div>
-      <div class="row"><label>Hoàn tác (B)</label><button class="btn" data-action="undo" id="map-undo">—</button></div>
-      <div class="row"><label>Đọc điểm / Reset (+)</label><button class="btn" data-action="plus" id="map-plus">—</button></div>
-    </div>
-
+    <div class="row"><label>Ghi điểm nửa trái (Y)</label><button class="btn" data-action="left" id="map-left">—</button></div>
+    <div class="row"><label>Ghi điểm nửa phải (A)</label><button class="btn" data-action="right" id="map-right">—</button></div>
+    <div class="row"><label>Mất bóng / giữ: đổi tay giao (X)</label><button class="btn" data-action="fault" id="map-fault">—</button></div>
+    <div class="row"><label>Hoàn tác / giữ: đổi sân (B)</label><button class="btn" data-action="undo" id="map-undo">—</button></div>
+    <div class="row"><label>Đọc điểm / giữ 3s: trận mới (+)</label><button class="btn" data-action="plus" id="map-plus">—</button></div>
     <div class="row"><label for="buttonsSwapped">Đảo nút Y/A theo hướng ngồi</label><input type="checkbox" id="buttonsSwapped"></div>
+
+    <h3>Phím tắt</h3>
+    <small class="note"><kbd>←</kbd><kbd>→</kbd> ghi điểm · <kbd>Z</kbd> hoàn tác · <kbd>Y</kbd> làm lại · <kbd>X</kbd> mất bóng · <kbd>Shift</kbd>+<kbd>X</kbd> đổi tay giao · <kbd>S</kbd> đọc điểm · <kbd>F</kbd> xoay · <kbd>W</kbd> đổi sân · <kbd>T</kbd> hội ý · <kbd>N</kbd> chế độ nắng</small>
+
     <h3>Thao tác nhanh</h3>
-    <button class="btn wide" id="btnSwapSides">⇄ Đổi bên sân (đảo dữ liệu trái/phải)</button>
-    <button class="btn wide" id="btnFault">✕ Fault / đổi lượt giao thủ công</button>
+    <button class="btn wide" id="btnSwapSides">⇄ Đổi bên sân</button>
+    <button class="btn wide" id="btnSwapPos0">⇄ Đổi chỗ 2 người đội xanh</button>
+    <button class="btn wide" id="btnSwapPos1">⇄ Đổi chỗ 2 người đội đỏ</button>
+    <button class="btn wide" id="btnFault">✕ Mất bóng / side-out</button>
     <button class="btn wide" id="btnUndo">↩ Hoàn tác</button>
-    <button class="btn wide danger" id="btnReset">⟲ Reset trận đấu (0-0)</button>
+    <button class="btn wide" id="btnRedo">↪ Làm lại</button>
+    <button class="btn wide" id="btnHistory">📋 Lịch sử trận đấu</button>
+    <button class="btn wide danger" id="btnReset">⟲ Trận mới (0-0)</button>
     <button class="btn wide primary" id="closeSettingsBtn">Đóng</button>
   </div>
 </div>
 
-<div id="lineupOverlay">
-  <div id="lineupPanel">
-    <h2>Đội hình trận đấu</h2>
-    <small class="note">Góc nhìn: Đứng ngoài biên nhìn vào lưới (giống hệt màn hình chính). Cột trái là Đội Trái, cột phải là Đội Phải.</small>
+<div class="modal" id="lineupOverlay">
+  <div class="sheet" id="lineupPanel">
+    <h2>Đội hình</h2>
+    <small class="note" id="lineupNote">Ô chẵn là ô bên tay phải của đội khi nhìn về lưới — nơi người giao đứng khi đội mình có điểm chẵn.</small>
 
     <h3>Thành viên CLB</h3>
     <div class="memberAddRow">
-      <input type="text" id="newMemberName" placeholder="Tên thành viên mới...">
+      <input type="text" id="newMemberName" placeholder="Tên thành viên mới..." maxlength="24">
       <button class="btn primary" id="addMemberBtn">+ Thêm</button>
     </div>
     <div id="memberList"></div>
 
-    <h3>Vị trí ban đầu (Lúc điểm số đội bằng 0)</h3>
+    <h3>Vị trí xuất phát</h3>
     <div class="slotGrid">
-      <!-- CỘT TRÁI = ĐỘI TRÁI -->
-      <div class="slotCard" data-slot="left-top">
-        <div class="slotTeam" id="slotTeamNameLeft1">ĐỘI TRÁI</div>
-        <span class="slotTag team-left">Ô TRÊN (LẺ - SỐ 2)</span>
-        <div class="slotName empty" id="slotName-left-top">Chưa chọn</div>
-        <select id="slotSelect-left-top"></select>
+      <div class="slotCard" data-slot="0-even">
+        <div class="slotTeam" data-team-name="0">ĐỘI XANH</div>
+        <span class="slotTag" data-slot-label="0-even">Ô CHẴN · BÊN PHẢI</span>
+        <div class="slotName empty" data-slot-name="0-even">Chưa chọn</div>
+        <div class="slotWhere" data-slot-where="0-even"></div>
+        <select data-slot-select="0-even" aria-label="Chọn người ô chẵn đội xanh"></select>
       </div>
-      <!-- CỘT PHẢI = ĐỘI PHẢI (đứng quay mặt ngược hướng đội trái qua lưới nên Trên/Dưới bị đảo so với cột trái) -->
-      <div class="slotCard" data-slot="right-top">
-        <div class="slotTeam" id="slotTeamNameRight1">ĐỘI PHẢI</div>
-        <span class="slotTag team-right">Ô TRÊN (CHẴN - SỐ 1)</span>
-        <div class="slotName empty" id="slotName-right-top">Chưa chọn</div>
-        <select id="slotSelect-right-top"></select>
+      <div class="slotCard" data-slot="1-even">
+        <div class="slotTeam" data-team-name="1">ĐỘI ĐỎ</div>
+        <span class="slotTag" data-slot-label="1-even">Ô CHẴN · BÊN PHẢI</span>
+        <div class="slotName empty" data-slot-name="1-even">Chưa chọn</div>
+        <div class="slotWhere" data-slot-where="1-even"></div>
+        <select data-slot-select="1-even" aria-label="Chọn người ô chẵn đội đỏ"></select>
       </div>
-      
-      <div class="slotCard" data-slot="left-bottom">
-        <div class="slotTeam" id="slotTeamNameLeft2">ĐỘI TRÁI</div>
-        <span class="slotTag team-left">Ô DƯỚI (CHẴN - SỐ 1)</span>
-        <div class="slotName empty" id="slotName-left-bottom">Chưa chọn</div>
-        <select id="slotSelect-left-bottom"></select>
+      <div class="slotCard" data-slot="0-odd">
+        <div class="slotTeam" data-team-name="0">ĐỘI XANH</div>
+        <span class="slotTag" data-slot-label="0-odd">Ô LẺ · BÊN TRÁI</span>
+        <div class="slotName empty" data-slot-name="0-odd">Chưa chọn</div>
+        <div class="slotWhere" data-slot-where="0-odd"></div>
+        <select data-slot-select="0-odd" aria-label="Chọn người ô lẻ đội xanh"></select>
       </div>
-      <div class="slotCard" data-slot="right-bottom">
-        <div class="slotTeam" id="slotTeamNameRight2">ĐỘI PHẢI</div>
-        <span class="slotTag team-right">Ô DƯỚI (LẺ - SỐ 2)</span>
-        <div class="slotName empty" id="slotName-right-bottom">Chưa chọn</div>
-        <select id="slotSelect-right-bottom"></select>
+      <div class="slotCard" data-slot="1-odd">
+        <div class="slotTeam" data-team-name="1">ĐỘI ĐỎ</div>
+        <span class="slotTag" data-slot-label="1-odd">Ô LẺ · BÊN TRÁI</span>
+        <div class="slotName empty" data-slot-name="1-odd">Chưa chọn</div>
+        <div class="slotWhere" data-slot-where="1-odd"></div>
+        <select data-slot-select="1-odd" aria-label="Chọn người ô lẻ đội đỏ"></select>
       </div>
     </div>
-    <small class="note tight">Hệ thống tự động đồng bộ theo điểm số chẵn/lẻ để hiển thị chuẩn xác khi đặt máy hướng ra sân. Lưu ý: đội Phải đứng quay mặt ngược hướng với đội Trái qua lưới, nên nhãn Ô Trên/Dưới của đội Phải bị đảo Chẵn/Lẻ so với đội Trái — đây là đúng, không phải lỗi hiển thị.</small>
 
     <h3>Gán nút chọn (Joy-Con)</h3>
     <div class="row"><label>Bấm cần joystick để mở chọn</label><button class="btn" data-action="lineupSelect" id="map-lineupSelect">—</button></div>
@@ -337,510 +425,895 @@ small.note.tight { margin-top:10px; }
   </div>
 </div>
 
-<div id="toast"></div>
+<div class="modal" id="historyOverlay">
+  <div class="sheet" id="historyPanel">
+    <h2>Lịch sử trận đấu</h2>
+    <div id="historyList"></div>
+    <button class="btn wide" id="btnClearHistory">Xoá toàn bộ lịch sử</button>
+    <button class="btn wide primary" id="closeHistoryBtn">Đóng</button>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
 "use strict";
 
-const SCHEMA_VERSION = 5;
-const DEFAULT_CONFIG = { playTo: 11, winByTwo: true, scoringMode: 'traditional', autoSwapMidGame: false };
-const DEFAULT_KEYMAP = { left: 3, right: 0, fault: 2, undo: 1, plus: 9, lineupSelect: 10 };
-const DEFAULT_PREFS = { ttsEnabled: true, ttsRate: 1, ttsVoice: '', buttonsSwapped: true, displaySwapped: false, keepAwake: true, keymap: DEFAULT_KEYMAP };
-const DEFAULT_LINEUP = { left: { top: null, bottom: null }, right: { top: null, bottom: null } };
+/* ============================================================================
+   MÔ HÌNH
+   ----------------------------------------------------------------------------
+   Ba lớp tách rời:
+     1. ĐỘI (teams[0|1]) — thực thể ổn định: tên, lineup, điểm ván hiện tại, ván thắng.
+     2. BÊN SÂN VẬT LÝ (sideOf) — đội nào đứng nửa nào. Đổi sân = lật mapping này.
+     3. NỬA MÀN HÌNH — prefs.displaySwapped, thuần hiển thị.
 
-function loadJSON(key, fallback){
-  try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : JSON.parse(JSON.stringify(fallback)); }
-  catch(e){ return JSON.parse(JSON.stringify(fallback)); }
-}
+   Vị trí và người giao được lưu thẳng, không suy từ parity điểm số:
+     team.evenSlot    — slot đang đứng ô chẵn (ô bên phải của đội đó)
+     state.serverSlot — slot của người đang cầm giao
+   Đội giao ghi điểm: evenSlot lật, serverSlot giữ (vẫn người đó giao, đổi ô).
+   Mất bóng: serverSlot lật sang người kia, giao từ đúng ô họ đang đứng, kể cả khi
+   điểm lẻ. Tay 2 mất bóng: side-out, người giao đầu là người đang ở ô chẵn.
+   Quy tắc "điểm chẵn thì người giao đầu ván ở ô phải" là hệ quả tự kiểm.
+   ========================================================================== */
 
-let config = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CONFIG)), loadJSON('pb_config', DEFAULT_CONFIG));
-let prefs  = Object.assign(JSON.parse(JSON.stringify(DEFAULT_PREFS)), loadJSON('pb_prefs', DEFAULT_PREFS));
+const SCHEMA = 7;
+const K = { config:'pb7_config', prefs:'pb7_prefs', members:'pb7_members', state:'pb7_state', hist:'pb7_history', ver:'pb7_schema' };
+
+const DEFAULT_CONFIG = {
+  playTo: 11, winByTwo: true, scoringMode: 'traditional',
+  playersPerTeam: 2, bestOf: 1, midSwitch: 'deciding'
+};
+const DEFAULT_KEYMAP = { left:3, right:0, fault:2, undo:1, plus:9, lineupSelect:10 };
+const DEFAULT_PREFS  = { ttsEnabled:true, ttsRate:1, ttsVoice:'', buttonsSwapped:true, displaySwapped:false, keepAwake:true, sun:false, keymap:DEFAULT_KEYMAP };
+
+const clone = o => JSON.parse(JSON.stringify(o));
+const other = i => i === 0 ? 1 : 0;
+const flipQuad = q => q === 'top' ? 'bottom' : 'top';
+function loadJSON(key){ try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
+
+let config  = Object.assign(clone(DEFAULT_CONFIG), loadJSON(K.config) || {});
+let prefs   = Object.assign(clone(DEFAULT_PREFS),  loadJSON(K.prefs)  || {});
 prefs.keymap = Object.assign({}, DEFAULT_KEYMAP, prefs.keymap || {});
+let members = loadJSON(K.members) || [];
+let matchHistory = loadJSON(K.hist) || [];
 
-function freshMatch(){
+const isSingles = () => config.playersPerTeam === 1;
+const gamesNeeded = () => Math.floor(config.bestOf / 2) + 1;
+
+function freshTeam(i, name){ return { id:i, name, lineup:[null,null], evenSlot:0, score:0, gamesWon:0, timeouts:0 }; }
+
+function timeoutsPerGame(){ return config.playTo >= 21 ? 3 : 2; }
+
+function freshState(){
   return {
-    score: { left: 0, right: 0 },
-    servingSide: 'left',
-    serverNumber: 2, 
-    isGameOver: false,
+    teams: [ freshTeam(0,'ĐỘI ALPHA'), freshTeam(1,'ĐỘI BETA') ],
+    sideOf: { left:0, right:1 },
+    servingTeam: 0,
+    serverSlot: 0,
+    serverNumber: 2,
+    firstServerTeam: 0,
+    gameIndex: 0,
+    games: [],
+    gameOver: false,
+    matchOver: false,
     winner: null,
-    teamNames: { left: prefs.nameLeft || 'ĐỘI ALPHA', right: prefs.nameRight || 'ĐỘI BETA' },
-    sidesSwappedThisGame: false,
-    serverIntent: 'even' 
+    playOn: false,
+    midSwitchDone: false,
+    stats: {},
+    curStreak: 0,
+    startedAt: Date.now(),
+    elapsedMs: 0,
+    timeoutEndsAt: 0,
+    timeoutTeam: null
   };
 }
-let currentMatch = loadJSON('pb_match', null) || freshMatch();
-let history = [];
 
-let members = loadJSON('pb_members', []);
+/* --- Migrate v6 ----------------------------------------------------------- */
+function migrateV6(){
+  const old = loadJSON('pb6_state');
+  const oldMembers = loadJSON('pb6_members');
+  if(oldMembers && !members.length) members = oldMembers;
+  if(!old || !Array.isArray(old.teams)) return null;
+  const s = freshState();
+  old.teams.forEach((t, i)=>{
+    if(i > 1) return;
+    s.teams[i].name = t.name || s.teams[i].name;
+    s.teams[i].score = t.score | 0;
+    s.teams[i].lineup = Array.isArray(t.lineup) ? [t.lineup[0] ?? null, t.lineup[1] ?? null] : [null,null];
+    s.teams[i].evenSlot = t.evenSlot === 1 ? 1 : 0;
+  });
+  s.sideOf = { left: old.sideOf?.left === 1 ? 1 : 0, right: old.sideOf?.left === 1 ? 0 : 1 };
+  s.servingTeam = old.servingTeam === 1 ? 1 : 0;
+  s.serverSlot = old.serverSlot === 1 ? 1 : 0;
+  s.serverNumber = old.serverNumber === 1 ? 1 : 2;
+  s.firstServerTeam = s.servingTeam;
+  return s;
+}
 
-let initialLineup = Object.assign(JSON.parse(JSON.stringify(DEFAULT_LINEUP)), loadJSON('pb_initial_lineup', DEFAULT_LINEUP));
-initialLineup.left = Object.assign({top:null, bottom:null}, initialLineup.left || {});
-initialLineup.right = Object.assign({top:null, bottom:null}, initialLineup.right || {});
+let state = loadJSON(K.state) || migrateV6() || freshState();
+let past = [], future = [];
 
-let saveFailWarned = false;
-function saveAll(){
+function normalizeState(){
+  const base = freshState();
+  if(!state || !Array.isArray(state.teams) || state.teams.length !== 2){ state = base; return; }
+  state = Object.assign({}, base, state);
+  state.teams = state.teams.map((t, i)=>{
+    const out = Object.assign({}, base.teams[i], t || {});
+    out.id = i;
+    out.score = Math.max(0, out.score | 0);
+    out.gamesWon = Math.max(0, out.gamesWon | 0);
+    out.timeouts = Math.max(0, out.timeouts | 0);
+    out.lineup = Array.isArray(out.lineup) ? [out.lineup[0] ?? null, out.lineup[1] ?? null] : [null,null];
+    out.evenSlot = out.evenSlot === 1 ? 1 : 0;
+    out.name = String(out.name || base.teams[i].name).slice(0,20);
+    return out;
+  });
+  state.sideOf = { left: state.sideOf?.left === 1 ? 1 : 0, right: state.sideOf?.left === 1 ? 0 : 1 };
+  state.servingTeam = state.servingTeam === 1 ? 1 : 0;
+  state.serverSlot = state.serverSlot === 1 ? 1 : 0;
+  state.serverNumber = state.serverNumber === 1 ? 1 : 2;
+  state.firstServerTeam = state.firstServerTeam === 1 ? 1 : 0;
+  state.games = Array.isArray(state.games) ? state.games : [];
+  state.stats = (state.stats && typeof state.stats === 'object') ? state.stats : {};
+  state.gameOver = !!state.gameOver; state.matchOver = !!state.matchOver; state.playOn = !!state.playOn;
+  state.winner = (state.winner === 0 || state.winner === 1) ? state.winner : null;
+}
+normalizeState();
+
+/* ============================================================================
+   LƯU TRỮ — gom ghi, chỉ ghi key đã bẩn
+   ========================================================================== */
+const dirty = new Set();
+let flushTimer = null, saveFailWarned = false;
+const SER = { [K.config]:()=>config, [K.prefs]:()=>prefs, [K.members]:()=>members, [K.state]:()=>state, [K.hist]:()=>matchHistory };
+function save(...keys){
+  keys.forEach(k=>dirty.add(k));
+  if(!flushTimer) flushTimer = setTimeout(flush, 200);
+}
+function flush(){
+  clearTimeout(flushTimer); flushTimer = null;
+  if(!dirty.size) return;
   try{
-    localStorage.setItem('pb_schema_version', String(SCHEMA_VERSION));
-    localStorage.setItem('pb_config', JSON.stringify(config));
-    localStorage.setItem('pb_prefs', JSON.stringify(prefs));
-    localStorage.setItem('pb_match', JSON.stringify(currentMatch));
-    localStorage.setItem('pb_members', JSON.stringify(members));
-    localStorage.setItem('pb_initial_lineup', JSON.stringify(initialLineup));
+    localStorage.setItem(K.ver, String(SCHEMA));
+    dirty.forEach(k => localStorage.setItem(k, JSON.stringify(SER[k]())));
+    dirty.clear();
   } catch(e){
-    // Không để lỗi lưu trữ (bộ nhớ đầy, chế độ riêng tư chặn ghi...) làm crash luồng ghi điểm/undo đang chạy.
-    if(!saveFailWarned){ saveFailWarned = true; toast('⚠️ Không lưu được dữ liệu (bộ nhớ đầy?) — trận vẫn tiếp tục nhưng có thể mất khi tải lại trang', 3500); }
+    dirty.clear();
+    if(!saveFailWarned){ saveFailWarned = true; toast('⚠️ Không lưu được dữ liệu — trận vẫn chạy bình thường', 3500); }
   }
 }
+window.addEventListener('pagehide', flush);
 
-const el = {
-  scoreLeft: document.getElementById('scoreLeftEl'), scoreRight: document.getElementById('scoreRightEl'),
-  nameLeft: document.getElementById('nameLeftEl'), nameRight: document.getElementById('nameRightEl'),
-  halfLeft: document.getElementById('halfLeft'), halfRight: document.getElementById('halfRight'),
-  gpStatus: document.getElementById('gp-status'), wlStatus: document.getElementById('wl-status'),
-  modeTag: document.getElementById('modeTag'), toast: document.getElementById('toast'),
-  resetOverlay: document.getElementById('resetOverlay'), resetOverlayText: document.getElementById('resetOverlayText'),
-  resetRingFill: document.getElementById('resetRingFill'), holdBarLeft: document.getElementById('holdBarLeft'),
-  holdBarRight: document.getElementById('holdBarRight'), keyhintLeft: document.getElementById('keyhintLeft'),
-  keyhintRight: document.getElementById('keyhintRight'), playerTagsLeft: document.getElementById('playerTagsLeftEl'),
-  playerTagsRight: document.getElementById('playerTagsRightEl'), serverBadgeLeft: document.getElementById('serverBadgeLeftEl'),
-  serverBadgeRight: document.getElementById('serverBadgeRightEl'), flipBtn: document.getElementById('flipBtn'),
-  court: document.getElementById('court')
-};
+/* ============================================================================
+   SUY DIỄN
+   ========================================================================== */
+function physSideOfTeam(t){ return state.sideOf.left === t ? 'left' : 'right'; }
+function evenQuadOf(physSide){ return physSide === 'left' ? 'bottom' : 'top'; }
 
-/* Huy hiệu màu tự sinh cho từng thành viên, dựa trên id -> ổn định, không cần lưu thêm dữ liệu */
-function colorForMember(id){
-  if(!id) return 'rgba(255,255,255,.2)';
-  let hash = 0;
-  for(let i=0;i<id.length;i++){ hash = (hash * 31 + id.charCodeAt(i)) >>> 0; }
-  const hue = hash % 360;
-  return `hsl(${hue}, 70%, 55%)`;
+function quadOfSlot(teamIdx, slot){
+  const even = evenQuadOf(physSideOfTeam(teamIdx));
+  if(isSingles()) return (state.teams[teamIdx].score % 2 === 0) ? even : flipQuad(even);
+  return slot === state.teams[teamIdx].evenSlot ? even : flipQuad(even);
+}
+function slotAtQuad(teamIdx, realQuad){
+  const even = evenQuadOf(physSideOfTeam(teamIdx));
+  return realQuad === even ? state.teams[teamIdx].evenSlot : other(state.teams[teamIdx].evenSlot);
+}
+function serverQuad(){ return quadOfSlot(state.servingTeam, state.serverSlot); }
+function serverOnEvenCourt(){ return serverQuad() === evenQuadOf(physSideOfTeam(state.servingTeam)); }
+function receiverQuad(){
+  const r = other(state.servingTeam), even = evenQuadOf(physSideOfTeam(r));
+  return serverOnEvenCourt() ? even : flipQuad(even);
 }
 
-function toast(msg, ms){
-  el.toast.textContent = msg; el.toast.classList.add('show');
-  clearTimeout(toast._t); toast._t = setTimeout(()=>el.toast.classList.remove('show'), ms || 1400);
-}
+function physSideForScreen(s){ return prefs.displaySwapped ? (s === 'left' ? 'right' : 'left') : s; }
+function screenQuadOf(q){ return prefs.displaySwapped ? flipQuad(q) : q; }
+function screenSideForButton(s){ return prefs.buttonsSwapped ? (s === 'left' ? 'right' : 'left') : s; }
+function teamOnScreen(s){ return state.sideOf[physSideForScreen(s)]; }
 
-const scoreFitCanvas = document.createElement('canvas');
-const scoreFitCtx = scoreFitCanvas.getContext('2d');
-function measureTextWidthAtSize(text, px){
-  scoreFitCtx.font = `600 ${px}px Teko, sans-serif`; return scoreFitCtx.measureText(text || '0').width;
-}
-function idealFontSizeFor(text, availW, availH){
-  const refPx = 200; const measuredW = measureTextWidthAtSize(text, refPx) || 1;
-  return Math.min((availW / measuredW) * refPx, availH / 0.74);
-}
-function fitScoreFonts(){
-  const boxL = { availW: el.halfLeft.getBoundingClientRect().width * 0.92, availH: el.halfLeft.getBoundingClientRect().height * 0.8 };
-  const boxR = { availW: el.halfRight.getBoundingClientRect().width * 0.92, availH: el.halfRight.getBoundingClientRect().height * 0.8 };
-  let px = Math.min(idealFontSizeFor(el.scoreLeft.textContent, boxL.availW, boxL.availH), idealFontSizeFor(el.scoreRight.textContent, boxR.availW, boxR.availH)) * 0.94;
-  px = Math.max(44, Math.min(640, px));
-  el.scoreLeft.style.fontSize = px + 'px'; el.scoreRight.style.fontSize = px + 'px';
-}
-window.addEventListener('resize', fitScoreFonts);
-if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>fitScoreFonts()).catch(()=>{}); }
-
-// Khi bấm nút xoay, đổi hẳn dữ liệu đội nào hiển thị ở nửa màn hình nào (mô phỏng việc xoay
-// thiết bị 360° tại chỗ để hướng về phía người trong sân — vật lý màn hình không đổi, chỉ đổi
-// chỗ dữ liệu để khớp đúng vị trí thật của mỗi đội so với thiết bị sau khi xoay).
-function dataSideForScreen(screenSide){ return !prefs.displaySwapped ? screenSide : (screenSide === 'left' ? 'right' : 'left'); }
-function screenSideForButton(physicalSide){ return prefs.buttonsSwapped ? ((physicalSide === 'left') ? 'right' : 'left') : physicalSide; }
-// Khi xoay vật lý 180°, Trên/Dưới trên MÀN HÌNH cũng đảo chỗ giống Trái/Phải (đây là phép quay
-// quanh 1 điểm, không phải lật gương). screenQuad() chuyển 1 vị trí "thật" (top/bottom) sang
-// đúng ô hiển thị trên màn hình sau khi xoay.
-function screenQuad(realQuad){ return !prefs.displaySwapped ? realQuad : (realQuad === 'top' ? 'bottom' : 'top'); }
 function memberName(id){ const m = members.find(x => x.id === id); return m ? m.name : null; }
-
-/* FIX TOÀN DIỆN LOGIC: Trên = Lẻ (2), Dưới = Chẵn (1) dựa trên góc nhìn thực tế của người dùng */
-function getActiveQuadrantInfo(dataSide) {
-  const score = currentMatch.score[dataSide];
-  const isEvenScore = (score % 2 === 0);
-  let quad;
-
-  if (config.scoringMode === 'rally') {
-    quad = isEvenScore ? 'bottom' : 'top';
-  } else if (currentMatch.servingSide === dataSide) {
-    // Đầu trận 0-0-2 bắt đầu từ ô chẵn (Dưới)
-    if (currentMatch.score.left === 0 && currentMatch.score.right === 0 && currentMatch.serverNumber === 2) {
-      quad = 'bottom';
-    } else if (currentMatch.serverIntent === 'even') {
-      quad = isEvenScore ? 'bottom' : 'top';
-    } else {
-      quad = isEvenScore ? 'top' : 'bottom';
-    }
-  } else {
-    // Đội đỡ bóng đứng cố định theo điểm chẵn/lẻ của chính mình
-    quad = isEvenScore ? 'bottom' : 'top';
-  }
-
-  // Hai đội đứng quay mặt vào nhau qua lưới (hướng ngược nhau), nên đội bên phải sân
-  // (dataSide 'right' — một thực thể cố định, được swapSides() cập nhật khi đổi sân thật)
-  // phải đảo Trên/Dưới so với công thức gốc mới khớp thực tế sân đấu.
-  // Lưu ý: KHÔNG liên quan đến prefs.displaySwapped — nút xoay màn hình chỉ đổi chỗ HIỂN THỊ
-  // dữ liệu (xem dataSideForScreen), không đổi bản chất dataSide 'left'/'right', nên mirror này
-  // vẫn đúng cho dù đang xoay màn hình hay không.
-  if (dataSide === 'right') {
-    quad = (quad === 'top') ? 'bottom' : 'top';
-  }
-
-  return quad;
+function colorForMember(id){
+  if(!id) return 'rgba(128,128,128,.35)';
+  let h = 0; for(let i=0;i<id.length;i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360}, 70%, ${prefs.sun ? 42 : 55}%)`;
+}
+function playerKey(teamIdx, slot){ return state.teams[teamIdx].lineup[slot] || ('t' + teamIdx + 's' + slot); }
+function playerLabel(teamIdx, slot){
+  return memberName(state.teams[teamIdx].lineup[slot]) || (state.teams[teamIdx].name + ' · ' + (slot === 0 ? 'ô chẵn' : 'ô lẻ'));
 }
 
-function renderPlayerTagsFor(container, dataSide, isServingTeam){
-  const keys = ['top', 'bottom'];
-  if(container.children.length !== keys.length){
-    container.innerHTML = '';
-    keys.forEach(key=>{
-      const tag = document.createElement('div'); tag.className = 'playerTag'; tag.dataset.key = key;
-      tag.innerHTML = '<span class="tag-s"></span><span class="tag-dot"></span><span class="tag-name"></span>'; container.appendChild(tag);
-    });
-  }
+/** Đội này ghi thêm 1 điểm nữa thì thắng ván? */
+function isGamePointFor(teamIdx){
+  const me = state.teams[teamIdx].score + 1, you = state.teams[other(teamIdx)].score;
+  return me >= config.playTo && (!config.winByTwo || me - you >= 2);
+}
+function isMatchPointFor(teamIdx){
+  return isGamePointFor(teamIdx) && state.teams[teamIdx].gamesWon + 1 >= gamesNeeded();
+}
+const isDecidingGame = () => config.bestOf > 1 && state.gameIndex === config.bestOf - 1;
+const inTimeout = () => state.timeoutEndsAt > Date.now();
 
-  const activeQuad = getActiveQuadrantInfo(dataSide);
-  const score = currentMatch.score[dataSide];
-  const isEvenScore = (score % 2 === 0);
-
-  keys.forEach(key=>{
-    const tag = container.querySelector('[data-key="' + key + '"]');
-    // key là VỊ TRÍ TRÊN MÀN HÌNH (DOM cố định). realQuad là vị trí THẬT ngoài sân.
-    // Khi màn hình đã bị xoay (displaySwapped), 2 cái này lệch nhau — phải quy đổi trước khi tra dữ liệu.
-    const realQuad = screenQuad(key);
-
-    let currentOccupant = null;
-    // Bất kể đội nào, cứ điểm chẵn thì người ô gốc ban đầu đứng ở Dưới (bottom), điểm lẻ đứng ở Trên (top)
-    if (config.scoringMode === 'rally' || isEvenScore) {
-      currentOccupant = initialLineup[dataSide][realQuad];
-    } else {
-      const oppositeQuad = (realQuad === 'top') ? 'bottom' : 'top';
-      currentOccupant = initialLineup[dataSide][oppositeQuad];
-    }
-
-    const name = memberName(currentOccupant);
-    const isServingNow = isServingTeam && (activeQuad === realQuad);
-    
-    tag.classList.toggle('empty', !name); 
-    tag.classList.toggle('serving-now', !!isServingNow);
-
-    let roleText = '';
-    if (isServingTeam) {
-      if (activeQuad === realQuad) {
-        roleText = 'S' + currentMatch.serverNumber;
-      } else {
-        roleText = 'S' + (currentMatch.serverNumber === 1 ? 2 : 1);
-      }
-    } else {
-      // Đội nhận bóng: Luật quốc tế quy định giao bóng CHÉO CÁNH từ ô này sang ô đối diện chéo
-      const activeServerQuad = getActiveQuadrantInfo(currentMatch.servingSide);
-      let isReceiver = false;
-      
-      // Vì trên màn hình góc nhìn đồng bộ Trên = Lẻ, Dưới = Chẵn cho cả hai bên
-      // Do đó, ô Dưới (Chẵn) của bên này sẽ đánh chéo sang ô Trên (Chẵn của đối phương nhưng ở góc đối diện chéo)
-      if (activeServerQuad === 'bottom') {
-        isReceiver = (realQuad === 'top'); 
-      } else {
-        isReceiver = (realQuad === 'bottom');
-      }
-      roleText = isReceiver ? 'Nhận' : 'Đỡ Hộ';
-    }
-
-    tag.querySelector('.tag-s').textContent = roleText; 
-    tag.querySelector('.tag-name').textContent = name || 'Chưa chọn';
-    tag.querySelector('.tag-dot').style.background = colorForMember(currentOccupant);
-  });
+/* ============================================================================
+   THỐNG KÊ
+   ========================================================================== */
+function statFor(key){
+  if(!state.stats[key]) state.stats[key] = { pts:0, turns:0, best:0 };
+  return state.stats[key];
+}
+/** Gọi mỗi khi quyền giao chuyển sang một người khác. */
+function beginServeTurn(){
+  statFor(playerKey(state.servingTeam, state.serverSlot)).turns++;
+  state.curStreak = 0;
+}
+function creditPoint(){
+  const s = statFor(playerKey(state.servingTeam, state.serverSlot));
+  s.pts++;
+  state.curStreak++;
+  if(state.curStreak > s.best) s.best = state.curStreak;
 }
 
-function updateServerBadge(){
-  const dsLeft = dataSideForScreen('left'), dsRight = dataSideForScreen('right');
-  [ { screenSide:'left', dataSide:dsLeft, badge:el.serverBadgeLeft }, { screenSide:'right', dataSide:dsRight, badge:el.serverBadgeRight } ].forEach(({dataSide, badge})=>{
-    if(!(currentMatch.servingSide === dataSide) || currentMatch.isGameOver){ badge.classList.remove('show'); return; }
-    
-    const activeQuad = getActiveQuadrantInfo(dataSide);
-    const score = currentMatch.score[dataSide];
-    const isEvenScore = (score % 2 === 0);
-    
-    let currentOccupant = null;
-    if (config.scoringMode === 'rally' || isEvenScore) {
-      currentOccupant = initialLineup[dataSide][activeQuad];
-    } else {
-      currentOccupant = initialLineup[dataSide][activeQuad === 'top' ? 'bottom' : 'top'];
-    }
-
-    badge.textContent = 'S' + currentMatch.serverNumber + ' · ' + (memberName(currentOccupant) || 'Chưa chọn');
-    // activeQuad là vị trí THẬT — badge phải hiện ở vị trí TRÊN MÀN HÌNH tương ứng sau khi xoay.
-    const badgeScreenQuad = screenQuad(activeQuad);
-    badge.classList.toggle('quad-top', badgeScreenQuad === 'top'); badge.classList.toggle('quad-bottom', badgeScreenQuad === 'bottom');
-    badge.classList.add('show');
-  });
-}
-
-function render(){
-  const dsLeft = dataSideForScreen('left'), dsRight = dataSideForScreen('right');
-  renderPlayerTagsFor(el.playerTagsLeft, dsLeft, currentMatch.servingSide === dsLeft);
-  renderPlayerTagsFor(el.playerTagsRight, dsRight, currentMatch.servingSide === dsRight);
-  updateServerBadge();
-
-  el.scoreLeft.textContent = currentMatch.score[dsLeft]; el.scoreRight.textContent = currentMatch.score[dsRight];
-  el.nameLeft.textContent = currentMatch.teamNames[dsLeft]; el.nameRight.textContent = currentMatch.teamNames[dsRight];
-
-  const cellLT = document.getElementById('cellLeftTop'), cellLB = document.getElementById('cellLeftBottom');
-  const cellRT = document.getElementById('cellRightTop'), cellRB = document.getElementById('cellRightBottom');
-  [cellLT, cellLB, cellRT, cellRB].forEach(c => { c.classList.remove('active-glow'); c.removeAttribute('data-server'); });
-
-  el.halfLeft.classList.toggle('serving', currentMatch.servingSide === dsLeft);
-  el.halfRight.classList.toggle('serving', currentMatch.servingSide === dsRight);
-
-  if(currentMatch.servingSide === dsLeft){
-    const activeCell = (screenQuad(getActiveQuadrantInfo(dsLeft)) === 'top') ? cellLT : cellLB;
-    activeCell.classList.add('active-glow'); activeCell.setAttribute('data-server', currentMatch.serverNumber);
-  } else if(currentMatch.servingSide === dsRight){
-    const activeCell = (screenQuad(getActiveQuadrantInfo(dsRight)) === 'top') ? cellRT : cellRB;
-    activeCell.classList.add('active-glow'); activeCell.setAttribute('data-server', currentMatch.serverNumber);
-  }
-  el.modeTag.textContent = (config.scoringMode === 'rally' ? 'Rally scoring' : 'Traditional') + ' · đến ' + config.playTo;
-  el.flipBtn.classList.toggle('active', !!prefs.displaySwapped);
-
-  // Màu nền phải đi theo ĐỘI đang hiển thị, không khoá cứng theo nửa màn hình —
-  // dataSide 'left' luôn tương ứng màu --team-alpha, 'right' luôn tương ứng --team-beta
-  // (bất biến này được swapSides() duy trì khi đổi sân thật). Khi bấm nút xoay, dsLeft/dsRight
-  // đổi chỗ nên nền cũng phải đổi theo cho đúng.
-  el.halfLeft.style.background = 'radial-gradient(100% 120% at 0% 50%, var(' + (dsLeft === 'left' ? '--team-alpha-a' : '--team-beta-a') + '), var(' + (dsLeft === 'left' ? '--team-alpha-b' : '--team-beta-b') + ') 85%)';
-  el.halfRight.style.background = 'radial-gradient(100% 120% at 100% 50%, var(' + (dsRight === 'left' ? '--team-alpha-a' : '--team-beta-a') + '), var(' + (dsRight === 'left' ? '--team-alpha-b' : '--team-beta-b') + ') 85%)';
-
-  const yScreenSide = screenSideForButton('left');
-  el.keyhintLeft.textContent = (yScreenSide === 'left' ? 'Y' : 'A') + ' ghi điểm'; el.keyhintRight.textContent = (yScreenSide === 'right' ? 'Y' : 'A') + ' ghi điểm';
-  fitScoreFonts();
-}
-
+/* ============================================================================
+   HÀNH ĐỘNG
+   ========================================================================== */
+function commit(){ save(K.state); requestRender(); }
 function pushHistory(){
-  history.push(JSON.parse(JSON.stringify({ match: currentMatch, initialLineup: initialLineup })));
-  if(history.length > 60) history.shift();
+  past.push(clone(state));
+  if(past.length > 80) past.shift();
+  future.length = 0;
 }
 
-function scoreUp(dataSide){
+function sideOutTo(teamIdx){
+  state.servingTeam = teamIdx;
+  state.serverSlot = isSingles() ? 0 : state.teams[teamIdx].evenSlot;
+  state.serverNumber = 1;
+  beginServeTurn();
+}
+function advanceServe(){
+  if(isSingles() || state.serverNumber === 2){ sideOutTo(other(state.servingTeam)); return; }
+  state.serverNumber = 2;
+  state.serverSlot = other(state.serverSlot);
+  beginServeTurn();
+}
+
+function rallyWonBy(teamIdx){
+  if(state.matchOver || state.gameOver){ openResult(); return; }
+  if(inTimeout()){ toast('Đang hội ý — bấm "Vào sân" trước'); return; }
   pushHistory();
-  if(config.scoringMode === 'rally'){
-    const isServingSideScoring = (dataSide === currentMatch.servingSide);
-    currentMatch.score[dataSide]++;
-    if(!isServingSideScoring){ currentMatch.servingSide = dataSide; currentMatch.serverNumber = 1; }
+
+  const serving = state.servingTeam;
+  if(teamIdx === serving){
+    creditPoint();
+    state.teams[serving].score++;
+    if(!isSingles()) state.teams[serving].evenSlot = other(state.teams[serving].evenSlot);
+  } else if(config.scoringMode === 'rally'){
+    state.teams[teamIdx].score++;
+    sideOutTo(teamIdx);
   } else {
-    if(dataSide === currentMatch.servingSide){
-      currentMatch.score[dataSide]++;
-    } else {
-      if(currentMatch.score.left === 0 && currentMatch.score.right === 0 && currentMatch.serverNumber === 2) {
-        currentMatch.servingSide = currentMatch.servingSide === 'left' ? 'right' : 'left';
-        currentMatch.serverNumber = 1;
-        currentMatch.serverIntent = 'even';
-      } else if(currentMatch.serverNumber === 1) {
-        currentMatch.serverNumber = 2; 
-        currentMatch.serverIntent = (currentMatch.serverIntent === 'even') ? 'odd' : 'even';
-      } else {
-        currentMatch.servingSide = currentMatch.servingSide === 'left' ? 'right' : 'left'; 
-        currentMatch.serverNumber = 1; 
-        const currentScore = currentMatch.score[currentMatch.servingSide];
-        currentMatch.serverIntent = (currentScore % 2 === 0) ? 'even' : 'odd';
-      }
-    }
+    advanceServe();
   }
 
-  if(!currentMatch.isGameOver && currentMatch.score[dataSide] >= config.playTo && (!config.winByTwo || Math.abs(currentMatch.score.left - currentMatch.score.right) >= 2)){
-    currentMatch.isGameOver = true; currentMatch.winner = dataSide;
-    toast('🏆 ' + currentMatch.teamNames[dataSide] + ' THẮNG TRẬN!', 3000); speak(currentMatch.teamNames[dataSide] + ' thắng trận!');
+  evaluateGameEnd();
+  if(!state.gameOver) maybeMidSwitch();
+  commit(); bumpScore(teamIdx); speakScore();
+}
+
+function evaluateGameEnd(){
+  if(state.playOn) return;
+  const [a, b] = state.teams;
+  const hi = Math.max(a.score, b.score), diff = Math.abs(a.score - b.score);
+  const won = hi >= config.playTo && (!config.winByTwo || diff >= 2);
+  if(!won){ state.gameOver = false; state.matchOver = false; state.winner = null; return; }
+
+  const w = a.score > b.score ? 0 : 1;
+  state.gameOver = true;
+  state.winner = w;
+  state.teams[w].gamesWon++;
+  state.games.push({ s0: a.score, s1: b.score, winner: w });
+  state.matchOver = state.teams[w].gamesWon >= gamesNeeded();
+  state.elapsedMs = Date.now() - state.startedAt;
+
+  if(state.matchOver) archiveMatch();
+  speak(state.teams[w].name + (state.matchOver ? ' thắng trận!' : ' thắng ván này!'));
+  setTimeout(openResult, 450);
+}
+
+function maybeMidSwitch(){
+  if(config.midSwitch === 'off' || state.midSwitchDone) return;
+  if(config.midSwitch === 'deciding' && !isDecidingGame()) return;
+  const at = Math.floor(config.playTo / 2) + 1;
+  if(state.teams[0].score >= at || state.teams[1].score >= at){
+    state.midSwitchDone = true;
+    swapSides(true);
+    toast('Đổi sân giữa ván (chạm ' + at + ' điểm)', 2200);
   }
-  if(config.autoSwapMidGame && !currentMatch.sidesSwappedThisGame){
-    const switchAt = Math.floor(config.playTo / 2) + 1;
-    if(currentMatch.score.left >= switchAt || currentMatch.score.right >= switchAt){ swapSides(true); currentMatch.sidesSwappedThisGame = true; }
+}
+
+/** Ván mới: về 0-0, đổi sân, đổi lượt giao đầu, hai người về vị trí xuất phát. */
+function nextGame(){
+  pushHistory();
+  state.gameIndex++;
+  state.teams.forEach(t => { t.score = 0; t.evenSlot = 0; t.timeouts = 0; });
+  const l = state.sideOf.left; state.sideOf.left = state.sideOf.right; state.sideOf.right = l;
+  state.firstServerTeam = other(state.firstServerTeam);
+  state.servingTeam = state.firstServerTeam;
+  state.serverSlot = 0;
+  state.serverNumber = isSingles() ? 1 : 2;
+  state.gameOver = false; state.winner = null; state.playOn = false; state.midSwitchDone = false;
+  state.curStreak = 0;
+  beginServeTurn();
+  commit(); closeResult();
+  toast('Ván ' + (state.gameIndex + 1) + ' — ' + state.teams[state.servingTeam].name + ' giao bóng', 2400);
+  speak('Ván ' + (state.gameIndex + 1) + '. ' + state.teams[state.servingTeam].name + ' giao bóng');
+}
+
+/** Bỏ ngưỡng thắng, đánh tiếp với đúng tỉ số đang có. */
+function playOn(){
+  pushHistory();
+  // Rút lại kết quả ván vừa ghi nhận — ván chưa thật sự kết thúc.
+  if(state.gameOver && state.winner !== null){
+    state.teams[state.winner].gamesWon = Math.max(0, state.teams[state.winner].gamesWon - 1);
+    state.games.pop();
   }
-  saveAll(); render(); speakScore();
+  state.gameOver = false; state.matchOver = false; state.winner = null; state.playOn = true;
+  commit(); closeResult();
+  toast('Đánh tiếp — đã bỏ ngưỡng thắng cho ván này', 2600);
 }
 
 function manualFault(){
-  if(currentMatch.isGameOver) return;
-  pushHistory(); 
-  const preMatch = currentMatch.score.left === 0 && currentMatch.score.right === 0;
-  if (preMatch) {
-    currentMatch.servingSide = currentMatch.servingSide === 'left' ? 'right' : 'left';
-    currentMatch.serverNumber = 2;
-    currentMatch.serverIntent = 'even';
-  } else {
-    if (currentMatch.serverNumber === 1) {
-      currentMatch.serverNumber = 2;
-      currentMatch.serverIntent = (currentMatch.serverIntent === 'even') ? 'odd' : 'even';
-    } else {
-      currentMatch.servingSide = currentMatch.servingSide === 'left' ? 'right' : 'left';
-      currentMatch.serverNumber = 1;
-      const currentScore = currentMatch.score[currentMatch.servingSide];
-      currentMatch.serverIntent = (currentScore % 2 === 0) ? 'even' : 'odd';
-    }
-  }
-  saveAll(); render(); speakServingChange(); toast('Đổi lượt giao bóng');
+  if(state.gameOver || state.matchOver || inTimeout()) return;
+  pushHistory();
+  const before = state.servingTeam;
+  advanceServe();
+  commit(); speakServe();
+  toast(before === state.servingTeam ? 'Chuyển tay giao 2' : 'Side-out — ' + state.teams[state.servingTeam].name + ' giao');
 }
-
 function swapServerWithinTeam(){
-  if(currentMatch.isGameOver) return;
-  pushHistory(); 
-  currentMatch.serverNumber = currentMatch.serverNumber === 1 ? 2 : 1;
-  currentMatch.serverIntent = (currentMatch.serverIntent === 'even') ? 'odd' : 'even';
-  saveAll(); render(); speakServingChange(); toast('Đổi người giao bóng trong đội — tay ' + currentMatch.serverNumber);
+  if(isSingles() || state.gameOver || state.matchOver) return;
+  pushHistory();
+  state.serverSlot = other(state.serverSlot);
+  state.serverNumber = state.serverNumber === 1 ? 2 : 1;
+  commit(); speakServe();
+  toast('Người giao: ' + playerLabel(state.servingTeam, state.serverSlot));
+}
+function swapCourtPositions(teamIdx){
+  if(isSingles()) { toast('Chế độ đơn không có vị trí để đổi'); return; }
+  pushHistory();
+  state.teams[teamIdx].evenSlot = other(state.teams[teamIdx].evenSlot);
+  commit();
+  toast('Đã đổi chỗ 2 người của ' + state.teams[teamIdx].name);
+}
+function swapSides(silent){
+  const l = state.sideOf.left; state.sideOf.left = state.sideOf.right; state.sideOf.right = l;
+  commit();
+  if(!silent) toast('Đã đổi bên sân');
 }
 
 function undo(){
-  if(history.length === 0){ toast('Không còn gì để hoàn tác'); return; }
-  const hist = history.pop(); currentMatch = hist.match; initialLineup = hist.initialLineup;
-  saveAll(); render(); speakScore();
+  if(!past.length){ toast('Không còn gì để hoàn tác'); return; }
+  future.push(clone(state));
+  state = past.pop();
+  commit(); closeResult();
   [el.halfLeft, el.halfRight].forEach(h=>{ h.classList.remove('flash-undo'); void h.offsetWidth; h.classList.add('flash-undo'); });
   toast('Đã hoàn tác');
 }
-
-function swapSides(silent){
-  const t = currentMatch.teamNames.left; currentMatch.teamNames.left = currentMatch.teamNames.right; currentMatch.teamNames.right = t;
-  const s = currentMatch.score.left; currentMatch.score.left = currentMatch.score.right; currentMatch.score.right = s;
-  currentMatch.servingSide = currentMatch.servingSide === 'left' ? 'right' : 'left';
-  if(currentMatch.winner) currentMatch.winner = currentMatch.winner === 'left' ? 'right' : 'left';
-  
-  const lInit = initialLineup.left; initialLineup.left = initialLineup.right; initialLineup.right = lInit;
-  
-  const rootStyle = document.documentElement.style, computedStyle = getComputedStyle(document.documentElement);
-  const alphaA = computedStyle.getPropertyValue('--team-alpha-a').trim(), alphaB = computedStyle.getPropertyValue('--team-alpha-b').trim();
-  rootStyle.setProperty('--team-alpha-a', computedStyle.getPropertyValue('--team-beta-a').trim());
-  rootStyle.setProperty('--team-alpha-b', computedStyle.getPropertyValue('--team-beta-b').trim());
-  rootStyle.setProperty('--team-beta-a', alphaA); rootStyle.setProperty('--team-beta-b', alphaB);
-  saveAll(); render(); speakServingChange(); if(!silent) toast('Đã đổi bên sân');
+function redo(){
+  if(!future.length){ toast('Không có gì để làm lại'); return; }
+  past.push(clone(state));
+  state = future.pop();
+  commit(); toast('Đã làm lại');
 }
 
-function resetMatch(){
-  const names = { left: currentMatch.teamNames.left, right: currentMatch.teamNames.right };
-  currentMatch = freshMatch(); currentMatch.teamNames = names; history = [];
-  const coinFlip = Math.random() < 0.5 ? 'left' : 'right';
-  currentMatch.servingSide = coinFlip; 
-  currentMatch.serverNumber = 2; 
-  currentMatch.serverIntent = 'even'; 
-  saveAll(); render();
-  toast('Trận đấu mới — Tung đồng xu: ' + currentMatch.teamNames[coinFlip] + ' giao bóng');
-  speak(`${currentMatch.teamNames[coinFlip]} giao bóng, 0, 0, ${currentMatch.serverNumber}`);
+function newMatch(){
+  const names = state.teams.map(t => t.name);
+  const lineups = state.teams.map(t => clone(t.lineup));
+  const sideOf = clone(state.sideOf);
+  state = freshState();
+  state.sideOf = sideOf;
+  state.teams.forEach((t,i)=>{ t.name = names[i]; t.lineup = lineups[i]; });
+  state.firstServerTeam = Math.random() < 0.5 ? 0 : 1;
+  state.servingTeam = state.firstServerTeam;
+  state.serverSlot = 0;
+  state.serverNumber = isSingles() ? 1 : 2;
+  past = []; future = [];
+  beginServeTurn();
+  commit(); closeResult();
+  const n = state.teams[state.servingTeam].name;
+  toast('Trận mới — tung đồng xu: ' + n + ' giao bóng', 2600);
+  speak(n + ' giao bóng, 0, 0, ' + state.serverNumber);
 }
 
-function toggleButtonsSwapped(){ prefs.buttonsSwapped = !prefs.buttonsSwapped; saveAll(); render(); toast('Đảo nút Y/A: ' + (prefs.buttonsSwapped ? 'BẬT' : 'TẮT')); }
-
-let wakeLockRef = null, keepAwakeVideoEl = null, keepAwakeIntervalId = null;
-function ensureKeepAwakeVideo(){
-  if(keepAwakeVideoEl) return keepAwakeVideoEl;
-  const v = document.createElement('video');
-  v.setAttribute('muted',''); v.muted = true; v.setAttribute('playsinline',''); v.setAttribute('loop','');
-  // Đặt trong viewport (không phải toạ độ âm/ẩn hẳn), z-index không âm, opacity rất thấp nhưng khác 0 —
-  // một số bản iOS coi video "opacity:0 + z-index âm" là ẩn hoàn toàn nên tự tạm dừng để tiết kiệm pin.
-  v.style.cssText = 'position:fixed;bottom:0;right:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:0;';
-  // 1x1 px, gần như trong suốt, video mp4 lặp vô hạn — mẹo chặn khoá màn hình, chạy song song với Wake Lock API
-  // (một số bản Safari/iPadOS âm thầm huỷ Wake Lock sau một khoảng thời gian mà không báo lỗi, nên cần lớp dự phòng này chạy cùng lúc, không chỉ khi Wake Lock thất bại hẳn)
-  v.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAOJbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAArN0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAIAAAACAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAIrbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAyAAAAMgBVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAAB1m1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAZZzdGJsAAAAunN0c2QAAAAAAAAAAQAAAKphdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAIAAgBIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAMGF2Y0MBQsAe/+EAGGdCwB7ZH4iIwEQAAAMABAAAAwDIPFi5IAEABWjLg8sgAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAGuAAABrgAAAAGHN0dHMAAAAAAAAAAQAAABkAAAIAAAAAFHN0c3MAAAAAAAAAAQAAAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAABkAAAABAAAAeHN0c3oAAAAAAAAAAAAAABkAAAKDAAAACQAAAAoAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAAFHN0Y28AAAAAAAAAAQAAA7kAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAADZG1kYXQAAAJxBgX//23cRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MCByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgxOjB4MTExIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0wIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0yNSBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTQwIHJjPWNyZiBtYnRyZWU9MSBjcmY9MjMuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAAAApliIQM8mKAALC+AAAABUGaOBnqAAAABkGaVAZ6gAAAAAVBmmAz1AAAAAVBmoAz1AAAAAVBmqAz1AAAAAVBmsAz1AAAAAVBmuAz1AAAAAVBmwAz1AAAAAVBmyAz1AAAAAVBm0Az1AAAAAVBm2Az1AAAAAVBm4Az1AAAAAVBm6Az1AAAAAVBm8Az1AAAAAVBm+Az1AAAAAVBmgAz1AAAAAVBmiAz1AAAAAVBmkAz1AAAAAVBmmAz1AAAAAVBmoAz1AAAAAVBmqAz1AAAAAVBmsAv1AAAAAVBmuAv1AAAAAVBmwAr1A==';
-  document.body.appendChild(v); keepAwakeVideoEl = v; return v;
+/* --- Hội ý ---------------------------------------------------------------- */
+function callTimeout(teamIdx){
+  if(state.matchOver) return;
+  if(state.teams[teamIdx].timeouts >= timeoutsPerGame()){ toast(state.teams[teamIdx].name + ' đã hết lượt hội ý ván này'); return; }
+  pushHistory();
+  state.teams[teamIdx].timeouts++;
+  state.timeoutTeam = teamIdx;
+  state.timeoutEndsAt = Date.now() + 60000;
+  commit();
+  el.toTeam.textContent = 'HỘI Ý · ' + state.teams[teamIdx].name;
+  el.timeoutOverlay.classList.add('show');
+  speak('Hội ý, ' + state.teams[teamIdx].name);
 }
-async function acquireWakeLock(){
-  if('wakeLock' in navigator){
-    try{
-      if(wakeLockRef && !wakeLockRef.released) return; // đã giữ khoá rồi, không cần xin lại
-      wakeLockRef = await navigator.wakeLock.request('screen');
-      wakeLockRef.addEventListener('release', ()=>{ wakeLockRef = null; });
-    } catch(e){ wakeLockRef = null; }
+function endTimeout(){
+  state.timeoutEndsAt = 0; state.timeoutTeam = null;
+  el.timeoutOverlay.classList.remove('show');
+  commit();
+}
+
+/* --- Lưu trận vào lịch sử ------------------------------------------------- */
+function archiveMatch(){
+  matchHistory.unshift({
+    at: Date.now(),
+    durationMs: state.elapsedMs,
+    format: { playTo: config.playTo, bestOf: config.bestOf, mode: config.scoringMode, singles: isSingles() },
+    teams: state.teams.map((t,i)=>({ name: t.name, gamesWon: t.gamesWon, players: t.lineup.map((_,s)=>playerLabel(i,s)) })),
+    games: clone(state.games),
+    winner: state.winner,
+    stats: Object.entries(state.stats).map(([k,v])=>({ name: labelForStatKey(k), ...v }))
+  });
+  if(matchHistory.length > 40) matchHistory.length = 40;
+  save(K.hist);
+}
+function labelForStatKey(key){
+  const m = /^t(\d)s(\d)$/.exec(key);
+  if(m) return playerLabel(Number(m[1]), Number(m[2]));
+  return memberName(key) || key;
+}
+function resultText(){
+  const w = state.winner;
+  const head = (w === null ? 'Kết quả' : state.teams[w].name + ' thắng');
+  const gs = state.games.map(g => g.s0 + '-' + g.s1).join(', ');
+  return `🏓 ${state.teams[0].name} vs ${state.teams[1].name}\n${head} ${state.teams[0].gamesWon}-${state.teams[1].gamesWon}` +
+         (gs ? `\nCác ván: ${gs}` : `\nTỉ số: ${state.teams[0].score}-${state.teams[1].score}`) +
+         `\nThời lượng: ${fmtDur(state.elapsedMs || (Date.now() - state.startedAt))}`;
+}
+async function shareResult(){
+  const text = resultText();
+  try{
+    if(navigator.share){ await navigator.share({ text }); return; }
+    await navigator.clipboard.writeText(text);
+    toast('Đã chép kết quả vào bộ nhớ tạm');
+  }catch(e){ toast('Không chia sẻ được trên thiết bị này'); }
+}
+function fmtDur(ms){
+  const s = Math.max(0, Math.round(ms / 1000));
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+/* ============================================================================
+   DOM
+   ========================================================================== */
+const el = {};
+[['halfLeft','halfLeft'],['halfRight','halfRight'],['scoreLeft','scoreLeftEl'],['scoreRight','scoreRightEl'],
+ ['nameLeft','nameLeftEl'],['nameRight','nameRightEl'],['dotsLeft','dotsLeftEl'],['dotsRight','dotsRightEl'],
+ ['tagsLeft','playerTagsLeftEl'],['tagsRight','playerTagsRightEl'],['badgeLeft','serverBadgeLeftEl'],['badgeRight','serverBadgeRightEl'],
+ ['keyhintLeft','keyhintLeft'],['keyhintRight','keyhintRight'],['meshLeft','meshLeft'],['meshRight','meshRight'],
+ ['gpStatus','gp-status'],['wlStatus','wl-status'],['clock','clock'],['toBtn','toBtn'],['formatTag','formatTag'],
+ ['sunBtn','sunBtn'],['flipBtn','flipBtn'],['toast','toast'],['callDot','callDot'],['callText','callText'],['pointFlag','pointFlag'],
+ ['resetOverlay','resetOverlay'],['resetRingFill','resetRingFill'],['timeoutOverlay','timeoutOverlay'],['toTeam','toTeam'],['toClock','toClock'],
+ ['resultOverlay','resultOverlay'],['resultKicker','resultKicker'],['resultWinner','resultWinner'],['resultScore','resultScore'],
+ ['resultGames','resultGames'],['resultStats','resultStats'],['btnNextGame','btnNextGame'],['btnPlayOn','btnPlayOn'],
+ ['overlay','overlay'],['lineupOverlay','lineupOverlay'],['historyOverlay','historyOverlay'],['historyList','historyList']
+].forEach(([k,id]) => el[k] = document.getElementById(id));
+el.cells = {}; document.querySelectorAll('[data-cell]').forEach(c => el.cells[c.dataset.cell] = c);
+
+function toast(msg, ms){
+  el.toast.textContent = msg; el.toast.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>el.toast.classList.remove('show'), ms || 1500);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let renderQueued = false;
+function requestRender(){
+  if(renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(()=>{ renderQueued = false; render(); });
+}
+function bumpScore(teamIdx){
+  const node = teamOnScreen('left') === teamIdx ? el.scoreLeft : el.scoreRight;
+  node.classList.remove('bump'); void node.offsetWidth; node.classList.add('bump');
+  setTimeout(()=>node.classList.remove('bump'), 200);
+}
+
+const fitCtx = document.createElement('canvas').getContext('2d');
+let lastFitKey = '';
+function fitScoreFonts(force){
+  const r = el.halfLeft.getBoundingClientRect();
+  const a = el.scoreLeft.textContent, b = el.scoreRight.textContent;
+  const key = a + '|' + b + '|' + Math.round(r.width) + 'x' + Math.round(r.height);
+  if(!force && key === lastFitKey) return;
+  lastFitKey = key;
+  fitCtx.font = '600 200px Teko, sans-serif';
+  const w = fitCtx.measureText(a.length >= b.length ? a : b).width || 1;
+  let px = Math.min((r.width * 0.92 / w) * 200, r.height * 0.8 / 0.74) * 0.94;
+  el.scoreLeft.style.fontSize = el.scoreRight.style.fontSize = Math.max(44, Math.min(640, px)) + 'px';
+}
+window.addEventListener('resize', ()=>fitScoreFonts(true));
+if(document.fonts?.ready) document.fonts.ready.then(()=>fitScoreFonts(true)).catch(()=>{});
+
+function renderTags(container, teamIdx, isServing){
+  if(container.children.length !== 2){
+    container.innerHTML = '';
+    ['top','bottom'].forEach(sq=>{
+      const t = document.createElement('div');
+      t.className = 'playerTag'; t.dataset.sq = sq;
+      t.innerHTML = '<span class="tag-s"></span><span class="tag-dot"></span><span class="tag-name"></span>';
+      container.appendChild(t);
+    });
   }
-  // Luôn chạy song song video 1px, không chỉ khi Wake Lock lỗi — vì trên một số bản Safari/iPadOS,
-  // Wake Lock có thể bị hệ thống âm thầm thu hồi giữa chừng mà không có cách nào web app biết được.
-  try{ const v = ensureKeepAwakeVideo(); if(v.paused) await v.play(); }catch(e){ /* trình duyệt chặn autoplay tới khi có tương tác — sẽ thử lại sau lần chạm kế tiếp */ }
-}
-async function applyKeepAwake(){
-  if(!prefs.keepAwake){
-    if(wakeLockRef){ try{ await wakeLockRef.release(); }catch(e){} wakeLockRef = null; }
-    if(keepAwakeVideoEl) keepAwakeVideoEl.pause();
-    if(keepAwakeIntervalId){ clearInterval(keepAwakeIntervalId); keepAwakeIntervalId = null; }
-    updateWakeStatusUI();
-    return;
-  }
-  updateWakeStatusUI();
-  await acquireWakeLock();
-  // Xin lại định kỳ mỗi 20 giây để bù cho việc một số thiết bị (đặc biệt iPad) tự huỷ Wake Lock ngầm theo thời gian.
-  if(!keepAwakeIntervalId){
-    keepAwakeIntervalId = setInterval(()=>{ if(prefs.keepAwake && document.visibilityState === 'visible') acquireWakeLock(); }, 20000);
-  }
-}
-function updateWakeStatusUI(){
-  el.wlStatus.classList.toggle('active', !!prefs.keepAwake);
-  el.wlStatus.textContent = prefs.keepAwake ? '☀️ Màn hình: luôn sáng' : '☀️ Màn hình: tự khoá';
-}
-el.wlStatus.addEventListener('click', ()=>{
-  prefs.keepAwake = !prefs.keepAwake; saveAll(); applyKeepAwake();
-  toast(prefs.keepAwake ? '☀️ Giữ màn hình luôn sáng: BẬT' : '☀️ Giữ màn hình luôn sáng: TẮT');
-});
-document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'visible') applyKeepAwake();
-  else if(keepAwakeVideoEl) keepAwakeVideoEl.pause();
-});
-['pointerdown','touchstart','click'].forEach(evt=>document.addEventListener(evt, ()=>{ if(prefs.keepAwake) acquireWakeLock(); }, {passive:true}));
+  const live = !state.gameOver && !state.matchOver;
+  const sQuad = serverQuad(), rQuad = receiverQuad();
+  ['top','bottom'].forEach(sq=>{
+    const tag = container.querySelector('[data-sq="' + sq + '"]');
+    const realQuad = screenQuadOf(sq);
+    const slot = isSingles() ? 0 : slotAtQuad(teamIdx, realQuad);
+    const id = state.teams[teamIdx].lineup[slot];
+    const name = memberName(id);
 
+    // Chế độ đơn: chỉ hiện đúng 1 thẻ, ở ô người đó đang đứng.
+    if(isSingles()){
+      const here = quadOfSlot(teamIdx, 0);
+      tag.classList.toggle('hidden', screenQuadOf(here) !== sq);
+    } else tag.classList.remove('hidden');
+
+    const serving = live && isServing && realQuad === sQuad;
+    const receiving = live && !isServing && realQuad === rQuad;
+    tag.classList.toggle('empty', !name);
+    tag.classList.toggle('serving-now', serving);
+    tag.classList.toggle('receiving-now', receiving);
+    tag.querySelector('.tag-s').textContent = serving ? (isSingles() ? 'Giao' : 'S' + state.serverNumber) : (receiving ? 'Nhận' : '');
+    tag.querySelector('.tag-name').textContent = name || 'Chưa chọn';
+    tag.querySelector('.tag-dot').style.background = colorForMember(id);
+  });
+}
+
+function renderDots(node, teamIdx){
+  if(config.bestOf < 2){ node.innerHTML = ''; return; }
+  const need = gamesNeeded(), won = state.teams[teamIdx].gamesWon;
+  node.innerHTML = Array.from({length: need}, (_,i)=>`<span class="gameDot${i < won ? ' won' : ''}"></span>`).join('');
+}
+
+function renderHalf(screenSide){
+  const teamIdx = teamOnScreen(screenSide);
+  const team = state.teams[teamIdx];
+  const isLeft = screenSide === 'left';
+  const half = isLeft ? el.halfLeft : el.halfRight;
+  const isServing = state.servingTeam === teamIdx;
+  const live = !state.gameOver && !state.matchOver;
+
+  half.dataset.team = String(teamIdx);
+  half.classList.toggle('serving', isServing && live);
+  (isLeft ? el.scoreLeft : el.scoreRight).textContent = String(team.score);
+  (isLeft ? el.nameLeft : el.nameRight).textContent = team.name;
+  renderDots(isLeft ? el.dotsLeft : el.dotsRight, teamIdx);
+  renderTags(isLeft ? el.tagsLeft : el.tagsRight, teamIdx, isServing);
+
+  const badge = isLeft ? el.badgeLeft : el.badgeRight;
+  if(isServing && live){
+    badge.textContent = (isSingles() ? '' : 'S' + state.serverNumber + ' · ') + playerLabel(teamIdx, state.serverSlot);
+    const sq = screenQuadOf(serverQuad());
+    badge.classList.toggle('quad-top', sq === 'top');
+    badge.classList.toggle('quad-bottom', sq === 'bottom');
+    badge.classList.add('show');
+  } else badge.classList.remove('show');
+
+  (isLeft ? el.meshLeft : el.meshRight).classList.toggle('single', isSingles());
+  ['top','bottom'].forEach(sq=>{
+    el.cells[screenSide + '-' + sq].classList.toggle('active-glow', isServing && live && screenQuadOf(serverQuad()) === sq);
+  });
+}
+
+function renderCallStrip(){
+  const live = !state.gameOver && !state.matchOver;
+  const s = state.teams[state.servingTeam].score, r = state.teams[other(state.servingTeam)].score;
+  const nums = (config.scoringMode === 'rally' || isSingles()) ? [s, r] : [s, r, state.serverNumber];
+  el.callText.innerHTML = nums.map(n=>`<span>${n}</span>`).join('<span class="sep">·</span>');
+  el.callDot.style.background = state.servingTeam === 0 ? 'var(--team0-a)' : 'var(--team1-a)';
+
+  let flag = '';
+  if(live){
+    const cands = config.scoringMode === 'rally' ? [0,1] : [state.servingTeam];
+    for(const t of cands){
+      if(isMatchPointFor(t)){ flag = 'MATCH POINT · ' + state.teams[t].name; break; }
+      if(isGamePointFor(t)){ flag = (config.bestOf > 1 ? 'GAME POINT · ' : 'ĐIỂM THẮNG · ') + state.teams[t].name; break; }
+    }
+  }
+  el.pointFlag.textContent = flag;
+  el.pointFlag.classList.toggle('show', !!flag);
+}
+
+function render(){
+  renderHalf('left'); renderHalf('right');
+  renderCallStrip();
+
+  const modeBits = [];
+  if(config.bestOf > 1) modeBits.push('Ván ' + (state.gameIndex + 1) + '/' + config.bestOf);
+  modeBits.push('đến ' + config.playTo);
+  if(isSingles()) modeBits.push('đơn');
+  if(config.scoringMode === 'rally') modeBits.push('rally');
+  if(state.playOn) modeBits.push('ĐÁNH TIẾP');
+  el.formatTag.textContent = modeBits.join(' · ');
+
+  el.toBtn.textContent = '⏱ ' + (timeoutsPerGame() - state.teams[0].timeouts) + '·' + (timeoutsPerGame() - state.teams[1].timeouts);
+  el.flipBtn.classList.toggle('active', !!prefs.displaySwapped);
+  el.sunBtn.classList.toggle('active', !!prefs.sun);
+
+  const yOn = screenSideForButton('left');
+  el.keyhintLeft.textContent  = (yOn === 'left'  ? 'Y' : 'A') + ' ghi điểm';
+  el.keyhintRight.textContent = (yOn === 'right' ? 'Y' : 'A') + ' ghi điểm';
+
+  fitScoreFonts(false);
+  if(el.lineupOverlay.classList.contains('show')) renderSlots();
+}
+
+/* --- Đồng hồ trận --------------------------------------------------------- */
+setInterval(()=>{
+  if(!state.matchOver) el.clock.textContent = fmtDur(Date.now() - state.startedAt);
+  if(state.timeoutEndsAt){
+    const left = state.timeoutEndsAt - Date.now();
+    if(left <= 0){ endTimeout(); speak('Hết giờ hội ý'); }
+    else {
+      el.toClock.textContent = Math.floor(left/1000/60) + ':' + String(Math.floor(left/1000)%60).padStart(2,'0');
+      if(!el.timeoutOverlay.classList.contains('show')){
+        el.toTeam.textContent = 'HỘI Ý · ' + state.teams[state.timeoutTeam ?? 0].name;
+        el.timeoutOverlay.classList.add('show');
+      }
+    }
+  }
+}, 500);
+
+/* ============================================================================
+   MÀN HÌNH KẾT QUẢ
+   ========================================================================== */
+function openResult(){
+  const w = state.winner;
+  el.resultKicker.textContent = state.matchOver ? 'KẾT THÚC TRẬN' : 'KẾT THÚC VÁN ' + state.games.length;
+  el.resultWinner.textContent = w === null ? '—' : state.teams[w].name;
+  el.resultScore.textContent = state.teams[0].score + '–' + state.teams[1].score;
+  el.resultGames.innerHTML = state.games.map(g =>
+    `<span class="gameChip${g.winner === w ? ' win' : ''}">${g.s0}–${g.s1}</span>`).join('');
+
+  const rows = Object.entries(state.stats)
+    .filter(([,v]) => v.turns || v.pts)
+    .sort((a,b) => b[1].pts - a[1].pts)
+    .map(([k,v]) => `<tr><td>${escapeHtml(labelForStatKey(k))}</td><td>${v.pts}</td><td>${v.turns}</td><td>${v.best}</td></tr>`);
+  el.resultStats.innerHTML = rows.length
+    ? `<h3>Điểm ghi khi cầm giao</h3><table class="statTable"><thead><tr><th>Người</th><th>Điểm</th><th>Lượt giao</th><th>Chuỗi dài nhất</th></tr></thead><tbody>${rows.join('')}</tbody></table>`
+    : '';
+
+  el.btnNextGame.style.display = (state.matchOver || config.bestOf < 2) ? 'none' : '';
+  el.btnPlayOn.textContent = state.matchOver ? 'Đánh tiếp (bỏ kết quả trận)' : 'Đánh tiếp với tỉ số này';
+  el.resultOverlay.classList.add('show');
+}
+function closeResult(){ el.resultOverlay.classList.remove('show'); }
+
+el.btnNextGame.addEventListener('click', nextGame);
+el.btnPlayOn.addEventListener('click', playOn);
+document.getElementById('btnResultUndo').addEventListener('click', undo);
+document.getElementById('btnShare').addEventListener('click', shareResult);
+document.getElementById('btnResultNew').addEventListener('click', newMatch);
+
+/* ============================================================================
+   ĐỌC ĐIỂM
+   ========================================================================== */
 let speechUnlocked = false;
 function unlockSpeech(){
-  if(speechUnlocked || !('speechSynthesis' in window)) return; speechUnlocked = true;
+  if(speechUnlocked || !('speechSynthesis' in window)) return;
+  speechUnlocked = true;
   try{ const w = new SpeechSynthesisUtterance(' '); w.volume = 0; speechSynthesis.speak(w); }catch(e){}
 }
-['pointerdown','touchstart','click','keydown'].forEach(evt=>document.addEventListener(evt, unlockSpeech, {once:true, passive:true}));
-
+['pointerdown','touchstart','click','keydown'].forEach(e=>document.addEventListener(e, unlockSpeech, {once:true, passive:true}));
 function speak(text){
   if(!prefs.ttsEnabled || !('speechSynthesis' in window)) return;
-  unlockSpeech(); speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = prefs.ttsRate || 1; u.lang = 'vi-VN';
-  const voices = speechSynthesis.getVoices(); if(voices && voices.length){ const v = voices.find(v=>v.name===prefs.ttsVoice) || voices.find(v=>v.lang && v.lang.toLowerCase().startsWith('vi')); if(v) u.voice = v; }
+  unlockSpeech(); speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = prefs.ttsRate || 1; u.lang = 'vi-VN';
+  const voices = speechSynthesis.getVoices();
+  if(voices?.length){
+    const v = voices.find(x => x.name === prefs.ttsVoice) || voices.find(x => x.lang?.toLowerCase().startsWith('vi'));
+    if(v) u.voice = v;
+  }
   speechSynthesis.speak(u);
 }
-function speakScore(){ speak(`${currentMatch.score[currentMatch.servingSide]}, ${currentMatch.score[currentMatch.servingSide==='left'?'right':'left']}, ${currentMatch.serverNumber}`); }
-function speakServingChange(){ speak(`${currentMatch.teamNames[currentMatch.servingSide]} giao bóng, tay ${currentMatch.serverNumber}`); }
+function speakScore(){
+  if(state.gameOver || state.matchOver) return;
+  const s = state.teams[state.servingTeam].score, r = state.teams[other(state.servingTeam)].score;
+  speak((config.scoringMode === 'rally' || isSingles()) ? `${s}, ${r}` : `${s}, ${r}, ${state.serverNumber}`);
+}
+function speakServe(){ speak(`${state.teams[state.servingTeam].name} giao bóng`); }
 
-const lineupOverlay = document.getElementById('lineupOverlay');
+/* ============================================================================
+   ĐỘI HÌNH
+   ========================================================================== */
+const SLOT_ORDER = ['0-even','1-even','0-odd','1-odd'];
 let lineupFocusIndex = 0;
-const SLOT_ORDER = ['left-top', 'right-top', 'left-bottom', 'right-bottom'];
+const parseSlotKey = k => { const [t, kind] = k.split('-'); return { teamIdx: Number(t), slot: kind === 'even' ? 0 : 1 }; };
 
 function renderMemberList(){
-  const listEl = document.getElementById('memberList');
-  if(!members.length){ listEl.innerHTML = '<div class="memberEmpty">Chưa có thành viên nào.</div>'; return; }
-  listEl.innerHTML = members.map(m => `<div class="memberRow"><span style="display:flex;align-items:center;"><span class="memberDot" style="background:${colorForMember(m.id)}"></span>${m.name}</span><button data-remove="${m.id}">✕</button></div>`).join('');
-  listEl.querySelectorAll('[data-remove]').forEach(btn=>{ btn.addEventListener('click', ()=>{ members = members.filter(m=>m.id!==btn.getAttribute('data-remove')); ['left','right'].forEach(s=>{ ['top','bottom'].forEach(k=>{ if(initialLineup[s][k]===btn.getAttribute('data-remove')) initialLineup[s][k]=null; }); }); saveAll(); renderMemberList(); renderSlots(); render(); }); });
+  const list = document.getElementById('memberList');
+  list.innerHTML = members.length
+    ? members.map(m => `<div class="memberRow"><span style="display:flex;align-items:center;"><span class="memberDot" style="background:${colorForMember(m.id)}"></span>${escapeHtml(m.name)}</span><button data-remove="${m.id}" aria-label="Xoá">✕</button></div>`).join('')
+    : '<div class="memberEmpty">Chưa có thành viên nào.</div>';
 }
-
-function assignSlot(slotKey, memberId){
-  const [side, srv] = slotKey.split('-');
-  initialLineup[side][srv] = memberId || null;
-  saveAll(); renderSlots(); render();
-}
-
 function renderSlots(){
-  document.getElementById('slotTeamNameLeft1').textContent = currentMatch.teamNames.left; document.getElementById('slotTeamNameLeft2').textContent = currentMatch.teamNames.left;
-  document.getElementById('slotTeamNameRight1').textContent = currentMatch.teamNames.right; document.getElementById('slotTeamNameRight2').textContent = currentMatch.teamNames.right;
-  SLOT_ORDER.forEach(slotKey=>{
-    const [side, srv] = slotKey.split('-');
-    const currentId = initialLineup[side][srv];
-    const name = memberName(currentId);
-    const nameEl = document.getElementById('slotName-' + slotKey), selectEl = document.getElementById('slotSelect-' + slotKey);
-    nameEl.innerHTML = name ? `<span class="slotDot" style="background:${colorForMember(currentId)}"></span>${name}` : 'Chưa chọn';
+  document.querySelectorAll('[data-team-name]').forEach(n => n.textContent = state.teams[Number(n.dataset.teamName)].name);
+  document.getElementById('lineupNote').textContent = isSingles()
+    ? 'Chế độ đơn: mỗi đội chỉ chọn một người. Vị trí đứng tự suy từ điểm số của chính người đó.'
+    : 'Ô chẵn là ô bên tay phải của đội khi nhìn về lưới — nơi người giao đứng khi đội mình có điểm chẵn.';
+  SLOT_ORDER.forEach((key, i)=>{
+    const { teamIdx, slot } = parseSlotKey(key);
+    const card = document.querySelector(`.slotCard[data-slot="${key}"]`);
+    card.dataset.team = String(teamIdx);
+    card.classList.toggle('hidden', isSingles() && slot === 1);
+    document.querySelector(`[data-slot-label="${key}"]`).textContent =
+      isSingles() ? 'NGƯỜI CHƠI' : (slot === 0 ? 'Ô CHẴN · BÊN PHẢI' : 'Ô LẺ · BÊN TRÁI');
+    const id = state.teams[teamIdx].lineup[slot];
+    const name = memberName(id);
+    const nameEl = document.querySelector(`[data-slot-name="${key}"]`);
+    nameEl.innerHTML = name ? `<span class="slotDot" style="background:${colorForMember(id)}"></span>${escapeHtml(name)}` : 'Chưa chọn';
     nameEl.classList.toggle('empty', !name);
-    selectEl.innerHTML = '<option value="">— Trống —</option>' + members.map(m => `<option value="${m.id}"${m.id===currentId?' selected':''}>${m.name}</option>`).join('');
+    const sq = screenQuadOf(quadOfSlot(teamIdx, slot));
+    document.querySelector(`[data-slot-where="${key}"]`).textContent = 'Đang ở nửa ' + (sq === 'top' ? 'TRÊN' : 'DƯỚI') + ' màn hình';
+    document.querySelector(`[data-slot-select="${key}"]`).innerHTML =
+      '<option value="">— Trống —</option>' + members.map(m => `<option value="${m.id}"${m.id === id ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+    card.classList.toggle('focused', i === lineupFocusIndex);
   });
-  document.querySelectorAll('.slotCard').forEach((card, i)=>card.classList.toggle('focused', i === lineupFocusIndex));
+}
+function assignSlot(key, memberId){
+  const { teamIdx, slot } = parseSlotKey(key);
+  const t = state.teams[teamIdx];
+  if(memberId && t.lineup[other(slot)] === memberId) t.lineup[other(slot)] = null;
+  t.lineup[slot] = memberId || null;
+  save(K.state); renderSlots(); requestRender();
+}
+document.querySelectorAll('.slotCard').forEach(card=>{
+  const key = card.dataset.slot;
+  card.addEventListener('click', ()=>{ lineupFocusIndex = SLOT_ORDER.indexOf(key); renderSlots(); });
+  document.querySelector(`[data-slot-select="${key}"]`).addEventListener('change', e=>{
+    assignSlot(key, e.target.value);
+    toast(memberName(e.target.value) ? 'Đã xếp vào ô này' : 'Đã bỏ trống ô này');
+  });
+});
+document.getElementById('memberList').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-remove]'); if(!btn) return;
+  const id = btn.dataset.remove;
+  members = members.filter(m => m.id !== id);
+  state.teams.forEach(t => t.lineup = t.lineup.map(x => x === id ? null : x));
+  save(K.members, K.state); renderMemberList(); renderSlots(); requestRender();
+});
+function addMember(){
+  const inp = document.getElementById('newMemberName');
+  const n = (inp.value || '').trim();
+  if(!n) return;
+  if(members.some(m => m.name.toLowerCase() === n.toLowerCase())){ toast('Tên này đã có'); return; }
+  members.push({ id:'m' + Date.now().toString(36), name:n });
+  save(K.members); renderMemberList(); renderSlots(); inp.value = '';
+}
+document.getElementById('addMemberBtn').addEventListener('click', addMember);
+document.getElementById('newMemberName').addEventListener('keydown', e=>{ if(e.key === 'Enter') addMember(); });
+document.getElementById('lineupBtn').addEventListener('click', ()=>{
+  lineupFocusIndex = 0; renderMemberList(); renderSlots();
+  document.getElementById('map-lineupSelect').textContent = btnLabel(prefs.keymap.lineupSelect);
+  el.lineupOverlay.classList.add('show');
+});
+document.getElementById('closeLineupBtn').addEventListener('click', ()=>el.lineupOverlay.classList.remove('show'));
+
+/* ============================================================================
+   LỊCH SỬ TRẬN
+   ========================================================================== */
+function renderHistory(){
+  el.historyList.innerHTML = matchHistory.length ? matchHistory.map(h=>{
+    const w = h.winner === null ? '—' : h.teams[h.winner].name;
+    const gs = h.games.map(g => g.s0 + '–' + g.s1).join(', ');
+    const d = new Date(h.at);
+    return `<div class="histRow"><div class="hTop"><span>${escapeHtml(h.teams[0].name)} vs ${escapeHtml(h.teams[1].name)}</span><span>${escapeHtml(w)}</span></div>
+      <div class="hSub">${d.toLocaleDateString('vi-VN')} ${d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})} · ${gs || '—'} · ${fmtDur(h.durationMs)}${h.format.singles ? ' · đơn' : ''}</div></div>`;
+  }).join('') : '<div class="memberEmpty">Chưa có trận nào được lưu.</div>';
+}
+document.getElementById('btnHistory').addEventListener('click', ()=>{ renderHistory(); el.historyOverlay.classList.add('show'); });
+document.getElementById('closeHistoryBtn').addEventListener('click', ()=>el.historyOverlay.classList.remove('show'));
+document.getElementById('btnClearHistory').addEventListener('click', ()=>{ matchHistory = []; save(K.hist); renderHistory(); toast('Đã xoá lịch sử'); });
+
+/* ============================================================================
+   ĐẦU VÀO
+   ========================================================================== */
+function scoreScreenSide(s){ rallyWonBy(teamOnScreen(s)); }
+el.halfLeft.addEventListener('click', ()=>scoreScreenSide('left'));
+el.halfRight.addEventListener('click', ()=>scoreScreenSide('right'));
+
+function createTapHoldHandler(opts){
+  let timeout = null, active = false, start = 0, fired = false, taps = [], singleTimer = null;
+  return {
+    onDown(){
+      fired = false; active = true; start = performance.now();
+      opts.onHoldStart && opts.onHoldStart();
+      (function tick(){
+        if(!active) return;
+        const p = Math.min((performance.now() - start) / opts.holdMs, 1);
+        opts.onHoldTick && opts.onHoldTick(p);
+        if(p < 1) requestAnimationFrame(tick);
+      })();
+      timeout = setTimeout(()=>{ fired = true; active = false; opts.onHoldComplete && opts.onHoldComplete(); }, opts.holdMs);
+    },
+    onUp(){
+      clearTimeout(timeout);
+      if(active){ active = false; opts.onHoldCancel && opts.onHoldCancel(); }
+      if(fired) return;
+      if(!opts.onTripleTap){ opts.onSingleTap && opts.onSingleTap(); return; }
+      const now = performance.now();
+      taps = taps.filter(t => now - t < 600); taps.push(now);
+      clearTimeout(singleTimer);
+      if(taps.length >= 3){ taps = []; opts.onTripleTap(); return; }
+      singleTimer = setTimeout(()=>{ taps = []; opts.onSingleTap && opts.onSingleTap(); }, 350);
+    }
+  };
+}
+function toggleButtonsSwapped(){
+  prefs.buttonsSwapped = !prefs.buttonsSwapped; save(K.prefs); requestRender();
+  toast('Đảo nút Y/A: ' + (prefs.buttonsSwapped ? 'BẬT' : 'TẮT'));
+}
+const plusHandler = createTapHoldHandler({
+  holdMs: 3000,
+  onHoldStart: ()=>el.resetOverlay.classList.add('show'),
+  onHoldTick: p => { el.resetRingFill.style.strokeDashoffset = String(264 * (1 - p)); },
+  onHoldComplete: ()=>{ el.resetOverlay.classList.remove('show'); newMatch(); },
+  onHoldCancel: ()=>el.resetOverlay.classList.remove('show'),
+  onSingleTap: speakScore,
+  onTripleTap: toggleButtonsSwapped
+});
+const xHandler = createTapHoldHandler({ holdMs: 600, onHoldComplete: swapServerWithinTeam, onSingleTap: manualFault });
+const bHandler = createTapHoldHandler({ holdMs: 700, onHoldComplete: ()=>swapSides(false), onSingleTap: undo });
+
+function toggleFlip(){
+  prefs.displaySwapped = !prefs.displaySwapped; save(K.prefs); requestRender();
+  toast(prefs.displaySwapped ? '🔄 Hiển thị theo chiều người trong sân' : '🔄 Chiều người setup');
+}
+function toggleSun(){
+  prefs.sun = !prefs.sun; save(K.prefs); applyTheme(); requestRender();
+  toast(prefs.sun ? '🌞 Chế độ nắng: BẬT' : '🌙 Chế độ tối: BẬT');
+}
+function applyTheme(){
+  document.body.classList.toggle('sun', !!prefs.sun);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', prefs.sun ? '#ffffff' : '#05070f');
+}
+function askTimeout(){
+  if(inTimeout()){ endTimeout(); return; }
+  callTimeout(state.servingTeam);
 }
 
-document.querySelectorAll('.slotCard').forEach((card, i)=>{
-  const slotKey = card.getAttribute('data-slot');
-  card.addEventListener('click', ()=>{ lineupFocusIndex = SLOT_ORDER.indexOf(slotKey); renderSlots(); });
-  document.getElementById('slotSelect-' + slotKey).addEventListener('change', e=>{ assignSlot(slotKey, e.target.value); toast(memberName(e.target.value) ? 'Đã xếp vào ô này' : 'Đã bỏ trống'); });
+document.addEventListener('keydown', e=>{
+  const t = e.target;
+  if(t && t.nodeType === 1 && t.matches('input, select, textarea, button')) return;
+  if(e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if(k === 'arrowleft')       scoreScreenSide('left');
+  else if(k === 'arrowright') scoreScreenSide('right');
+  else if(k === 'z')          undo();
+  else if(k === 'y')          redo();
+  else if(k === 'x')          (e.shiftKey ? swapServerWithinTeam : manualFault)();
+  else if(k === 's')          speakScore();
+  else if(k === 'w')          swapSides(false);
+  else if(k === 'f')          toggleFlip();
+  else if(k === 'n')          toggleSun();
+  else if(k === 't')          askTimeout();
+  else if(k === 'escape'){ document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show')); }
+  else return;
+  e.preventDefault();
 });
-document.getElementById('addMemberBtn').addEventListener('click', ()=>{ const inp = document.getElementById('newMemberName'), n = (inp.value|| '').trim(); if(n){ members.push({id:'m'+Date.now().toString(36), name:n}); saveAll(); renderMemberList(); renderSlots(); inp.value=''; } });
-document.getElementById('lineupBtn').addEventListener('click', ()=>{ lineupFocusIndex = 0; renderMemberList(); renderSlots(); lineupOverlay.classList.add('show'); document.getElementById('map-lineupSelect').textContent = (prefs.keymap.lineupSelect===-1||prefs.keymap.lineupSelect===undefined)?'Chưa gán':'Button '+prefs.keymap.lineupSelect; });
-document.getElementById('closeLineupBtn').addEventListener('click', ()=>lineupOverlay.classList.remove('show'));
 
-let axisNeutral = true;
+const prevButtonStates = {};
+let listeningForAction = null, axisNeutral = true;
 function pollGamepads(){
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const lineupOpen = el.lineupOverlay.classList.contains('show');
   for(const pad of pads){
     if(!pad) continue;
-    if(lineupOverlay.classList.contains('show') && !listeningForAction){
-      const ax = pad.axes || [], x = ax[0] || 0, y = ax[1] || 0, mag = Math.max(Math.abs(x), Math.abs(y));
+    if(lineupOpen && !listeningForAction){
+      const ax = pad.axes || [], x = ax[0] || 0, y = ax[1] || 0;
+      const mag = Math.max(Math.abs(x), Math.abs(y));
       if(mag < 0.3) axisNeutral = true;
       else if(axisNeutral && mag >= 0.55){
         axisNeutral = false;
@@ -853,98 +1326,202 @@ function pollGamepads(){
     pad.buttons.forEach((b, idx)=>{
       const pressed = b.pressed || b.value > 0.5, was = !!prev[idx];
       if(pressed && !was){
-        if(listeningForAction){ prefs.keymap[listeningForAction] = idx; saveAll(); updateKeymapButtons(); listeningForAction = null; }
-        else if(lineupOverlay.classList.contains('show')){
-          if(idx === prefs.keymap.lineupSelect){ const sel = document.getElementById('slotSelect-'+SLOT_ORDER[lineupFocusIndex]); if(sel.showPicker){try{sel.showPicker();}catch(e){}} else {sel.focus(); sel.click();} }
-          else if(idx === prefs.keymap.undo) lineupOverlay.classList.remove('show');
+        if(listeningForAction){
+          prefs.keymap[listeningForAction] = idx; save(K.prefs);
+          updateKeymapButtons();
+          document.getElementById('map-lineupSelect').textContent = btnLabel(prefs.keymap.lineupSelect);
+          listeningForAction = null;
+        } else if(lineupOpen){
+          if(idx === prefs.keymap.lineupSelect){
+            const sel = document.querySelector(`[data-slot-select="${SLOT_ORDER[lineupFocusIndex]}"]`);
+            if(sel.showPicker){ try{ sel.showPicker(); }catch(e){ sel.focus(); } } else { sel.focus(); sel.click(); }
+          } else if(idx === prefs.keymap.undo) el.lineupOverlay.classList.remove('show');
         } else {
-          if(idx === prefs.keymap.left) scoreUp(dataSideForScreen(screenSideForButton('left')));
-          else if(idx === prefs.keymap.right) scoreUp(dataSideForScreen(screenSideForButton('right')));
-          else if(idx === prefs.keymap.fault) xHandler.onDown(); else if(idx === prefs.keymap.undo) bHandler.onDown(); else if(idx === prefs.keymap.plus) plusHandler.onDown();
+          if(idx === prefs.keymap.left)       scoreScreenSide(screenSideForButton('left'));
+          else if(idx === prefs.keymap.right) scoreScreenSide(screenSideForButton('right'));
+          else if(idx === prefs.keymap.fault) xHandler.onDown();
+          else if(idx === prefs.keymap.undo)  bHandler.onDown();
+          else if(idx === prefs.keymap.plus)  plusHandler.onDown();
         }
       }
-      if(!pressed && was && !lineupOverlay.classList.contains('show')){ if(idx === prefs.keymap.fault) xHandler.onUp(); else if(idx === prefs.keymap.undo) bHandler.onUp(); else if(idx === prefs.keymap.plus) plusHandler.onUp(); }
+      if(!pressed && was && !lineupOpen){
+        if(idx === prefs.keymap.fault)     xHandler.onUp();
+        else if(idx === prefs.keymap.undo) bHandler.onUp();
+        else if(idx === prefs.keymap.plus) plusHandler.onUp();
+      }
       prev[idx] = pressed;
     });
     prevButtonStates[pad.index] = prev;
   }
   requestAnimationFrame(pollGamepads);
 }
-const prevButtonStates = {};
-
-function createTapHoldHandler(opts){
-  let timeout = null, active = false, start = 0, fired = false, tTimes = [], sTimer = null;
-  return {
-    onDown: () => { fired = false; active = true; start = performance.now(); opts.onHoldStart && opts.onHoldStart(); (function t(){ if(!active) return; const p = Math.min((performance.now() - start) / opts.holdMs, 1); opts.onHoldTick && opts.onHoldTick(p); if(p < 1) requestAnimationFrame(t); })(); timeout = setTimeout(()=>{ fired = true; active = false; opts.onHoldComplete && opts.onHoldComplete(); }, opts.holdMs); },
-    onUp: () => { clearTimeout(timeout); if(active){ active = false; opts.onHoldCancel && opts.onHoldCancel(); } if(fired) return; if(!opts.onTripleTap){ opts.onSingleTap && opts.onSingleTap(); return; } const now = performance.now(); tTimes = tTimes.filter(t => now - t < 600); tTimes.push(now); if(tTimes.length >= 3){ clearTimeout(sTimer); tTimes = []; opts.onTripleTap(); return; } clearTimeout(sTimer); sTimer = setTimeout(()=>{ if(tTimes.length < 3) opts.onSingleTap && opts.onSingleTap(); tTimes = []; }, 350); }
-  };
-}
-const plusHandler = createTapHoldHandler({ holdMs: 3000, onHoldStart: () => { el.resetOverlayText.textContent = 'GIỮ NÚT "+" ĐỂ RESET...'; el.resetOverlay.classList.add('show'); }, onHoldTick: p => { el.resetRingFill.style.strokeDashoffset = String(264 * (1 - p)); }, onHoldComplete: () => { el.resetOverlay.classList.remove('show'); resetMatch(); }, onHoldCancel: () => el.resetOverlay.classList.remove('show'), onSingleTap: () => speakScore(), onTripleTap: toggleButtonsSwapped });
-const xHandler = createTapHoldHandler({ holdMs: 600, onHoldComplete: () => swapServerWithinTeam(), onSingleTap: manualFault });
-const bHandler = createTapHoldHandler({ holdMs: 700, onHoldComplete: () => swapSides(false), onSingleTap: undo });
-
-el.flipBtn.addEventListener('click', ()=>{
-  prefs.displaySwapped = !prefs.displaySwapped; saveAll(); render();
-  toast(prefs.displaySwapped ? '🔄 Đã xoay — hiển thị đúng chiều cho người trong sân' : '🔄 Đã trả về chiều nhìn của người setup');
+window.addEventListener('gamepadconnected', ()=>{ el.gpStatus.textContent = '🎮 Đã kết nối'; el.gpStatus.classList.add('connected'); });
+window.addEventListener('gamepaddisconnected', ()=>{
+  if(!Array.from(navigator.getGamepads?.() || []).some(Boolean)){
+    el.gpStatus.textContent = '🎮 Chưa kết nối'; el.gpStatus.classList.remove('connected');
+  }
 });
 
-el.halfLeft.addEventListener('click', ()=> scoreUp(dataSideForScreen('left')));
-el.halfRight.addEventListener('click', ()=> scoreUp(dataSideForScreen('right')));
+/* ============================================================================
+   GIỮ MÀN HÌNH SÁNG
+   ========================================================================== */
+let wakeLockRef = null, keepAwakeVideoEl = null, keepAwakeIntervalId = null;
+function ensureKeepAwakeVideo(){
+  if(keepAwakeVideoEl) return keepAwakeVideoEl;
+  const v = document.createElement('video');
+  v.setAttribute('muted',''); v.muted = true; v.setAttribute('playsinline',''); v.setAttribute('loop','');
+  v.style.cssText = 'position:fixed;bottom:0;right:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:0;';
+  v.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAOJbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAArN0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAIAAAACAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAIrbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAyAAAAMgBVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAAB1m1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAZZzdGJsAAAAunN0c2QAAAAAAAAAAQAAAKphdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAIAAgBIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAMGF2Y0MBQsAe/+EAGGdCwB7ZH4iIwEQAAAMABAAAAwDIPFi5IAEABWjLg8sgAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAGuAAABrgAAAAGHN0dHMAAAAAAAAAAQAAABkAAAIAAAAAFHN0c3MAAAAAAAAAAQAAAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAABkAAAABAAAAeHN0c3oAAAAAAAAAAAAAABkAAAKDAAAACQAAAAoAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAACQAAAAkAAAAJAAAAFHN0Y28AAAAAAAAAAQAAA7kAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAADZG1kYXQAAAJxBgX//23cRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MCByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgxOjB4MTExIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0wIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0yNSBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTQwIHJjPWNyZiBtYnRyZWU9MSBjcmY9MjMuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAAAApliIQM8mKAALC+AAAABUGaOBnqAAAABkGaVAZ6gAAAAAVBmmAz1AAAAAVBmoAz1AAAAAVBmqAz1AAAAAVBmsAz1AAAAAVBmuAz1AAAAAVBmwAz1AAAAAVBmyAz1AAAAAVBm0Az1AAAAAVBm2Az1AAAAAVBm4Az1AAAAAVBm6Az1AAAAAVBm8Az1AAAAAVBm+Az1AAAAAVBmgAz1AAAAAVBmiAz1AAAAAVBmkAz1AAAAAVBmmAz1AAAAAVBmoAz1AAAAAVBmqAz1AAAAAVBmsAv1AAAAAVBmuAv1AAAAAVBmwAr1A==';
+  document.body.appendChild(v); keepAwakeVideoEl = v; return v;
+}
+async function acquireWakeLock(){
+  if('wakeLock' in navigator){
+    try{
+      if(wakeLockRef && !wakeLockRef.released) return;
+      wakeLockRef = await navigator.wakeLock.request('screen');
+      wakeLockRef.addEventListener('release', ()=>{ wakeLockRef = null; });
+    }catch(e){ wakeLockRef = null; }
+  }
+  try{ const v = ensureKeepAwakeVideo(); if(v.paused) await v.play(); }catch(e){}
+}
+async function applyKeepAwake(){
+  updateWakeStatusUI();
+  if(!prefs.keepAwake){
+    if(wakeLockRef){ try{ await wakeLockRef.release(); }catch(e){} wakeLockRef = null; }
+    keepAwakeVideoEl?.pause();
+    if(keepAwakeIntervalId){ clearInterval(keepAwakeIntervalId); keepAwakeIntervalId = null; }
+    return;
+  }
+  await acquireWakeLock();
+  if(!keepAwakeIntervalId){
+    keepAwakeIntervalId = setInterval(()=>{ if(prefs.keepAwake && document.visibilityState === 'visible') acquireWakeLock(); }, 20000);
+  }
+}
+function updateWakeStatusUI(){
+  el.wlStatus.classList.toggle('active', !!prefs.keepAwake);
+  el.wlStatus.textContent = prefs.keepAwake ? '☀️ luôn sáng' : '☀️ tự khoá';
+}
+el.wlStatus.addEventListener('click', ()=>{
+  prefs.keepAwake = !prefs.keepAwake; save(K.prefs); applyKeepAwake();
+  toast(prefs.keepAwake ? 'Giữ màn hình sáng: BẬT' : 'Giữ màn hình sáng: TẮT');
+});
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') applyKeepAwake();
+  else { keepAwakeVideoEl?.pause(); flush(); }
+});
+['pointerdown','touchstart','click'].forEach(e=>document.addEventListener(e, ()=>{ if(prefs.keepAwake) acquireWakeLock(); }, {passive:true}));
+
+/* ============================================================================
+   CÀI ĐẶT
+   ========================================================================== */
+el.flipBtn.addEventListener('click', toggleFlip);
+el.sunBtn.addEventListener('click', toggleSun);
+el.toBtn.addEventListener('click', askTimeout);
+document.getElementById('toEndBtn').addEventListener('click', endTimeout);
+
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  const g = id => document.getElementById(id);
+  g('playersPerTeam').value = String(config.playersPerTeam);
+  g('bestOf').value = String(config.bestOf);
+  g('scoringMode').value = config.scoringMode;
+  g('playTo').value = String(config.playTo);
+  g('winByTwo').checked = config.winByTwo;
+  g('midSwitch').value = config.midSwitch;
+  g('name0Input').value = state.teams[0].name;
+  g('name1Input').value = state.teams[1].name;
+  g('ttsEnabled').checked = prefs.ttsEnabled;
+  g('ttsRate').value = prefs.ttsRate;
+  g('buttonsSwapped').checked = prefs.buttonsSwapped;
+  g('btnSwapPos0').textContent = '⇄ Đổi chỗ 2 người · ' + state.teams[0].name;
+  g('btnSwapPos1').textContent = '⇄ Đổi chỗ 2 người · ' + state.teams[1].name;
+  populateVoiceList(); g('ttsVoice').value = prefs.ttsVoice || '';
+  updateKeymapButtons();
+  el.overlay.classList.add('show');
+});
+document.getElementById('closeSettingsBtn').addEventListener('click', ()=>el.overlay.classList.remove('show'));
+[el.overlay, el.lineupOverlay, el.historyOverlay].forEach(m => m.addEventListener('click', e=>{ if(e.target === m) m.classList.remove('show'); }));
+
+/** Đổi luật giữa chừng phải tính lại trạng thái thắng — đổi "chơi đến 15" là cách
+ *  tự nhiên nhất để đánh tiếp một ván đã chạm ngưỡng 11. */
+function reevaluateAfterConfigChange(){
+  if(state.gameOver || state.matchOver){
+    if(state.winner !== null){
+      state.teams[state.winner].gamesWon = Math.max(0, state.teams[state.winner].gamesWon - 1);
+      state.games.pop();
+    }
+    state.gameOver = false; state.matchOver = false; state.winner = null;
+    closeResult();
+  }
+  evaluateGameEnd();
+  commit();
+}
+const onCfg = (id, fn) => document.getElementById(id).addEventListener('change', e=>{ fn(e); save(K.config); reevaluateAfterConfigChange(); });
+onCfg('scoringMode', e => config.scoringMode = e.target.value);
+onCfg('playTo',      e => config.playTo = parseInt(e.target.value,10));
+onCfg('winByTwo',    e => config.winByTwo = e.target.checked);
+onCfg('bestOf',      e => config.bestOf = parseInt(e.target.value,10));
+onCfg('midSwitch',   e => config.midSwitch = e.target.value);
+onCfg('playersPerTeam', e => {
+  config.playersPerTeam = parseInt(e.target.value,10);
+  state.serverSlot = 0;
+  state.serverNumber = isSingles() ? 1 : 2;
+});
+document.getElementById('name0Input').addEventListener('input', e=>{ state.teams[0].name = e.target.value || 'ĐỘI ALPHA'; commit(); });
+document.getElementById('name1Input').addEventListener('input', e=>{ state.teams[1].name = e.target.value || 'ĐỘI BETA'; commit(); });
+document.getElementById('ttsEnabled').addEventListener('change', e=>{ prefs.ttsEnabled = e.target.checked; save(K.prefs); });
+document.getElementById('ttsRate').addEventListener('input', e=>{ prefs.ttsRate = parseFloat(e.target.value); save(K.prefs); });
+document.getElementById('buttonsSwapped').addEventListener('change', e=>{ prefs.buttonsSwapped = e.target.checked; save(K.prefs); requestRender(); });
+document.getElementById('btnSwapSides').addEventListener('click', ()=>swapSides(false));
+document.getElementById('btnSwapPos0').addEventListener('click', ()=>swapCourtPositions(0));
+document.getElementById('btnSwapPos1').addEventListener('click', ()=>swapCourtPositions(1));
 document.getElementById('btnFault').addEventListener('click', manualFault);
 document.getElementById('btnUndo').addEventListener('click', undo);
-document.getElementById('btnSwapSides').addEventListener('click', ()=>swapSides(false));
-document.getElementById('btnReset').addEventListener('click', ()=>{ resetMatch(); overlay.classList.remove('show'); });
+document.getElementById('btnRedo').addEventListener('click', redo);
+document.getElementById('btnReset').addEventListener('click', ()=>{ newMatch(); el.overlay.classList.remove('show'); });
 
 function populateVoiceList(){
   if(!('speechSynthesis' in window)) return;
   const sel = document.getElementById('ttsVoice');
   const voices = speechSynthesis.getVoices();
-  if(!voices || !voices.length) return;
-  const current = prefs.ttsVoice;
+  if(!voices?.length) return;
   sel.innerHTML = '<option value="">Tự động (ưu tiên tiếng Việt)</option>' +
-    voices.map(v => `<option value="${v.name}"${v.name===current?' selected':''}>${v.name} (${v.lang})</option>`).join('');
+    voices.map(v => `<option value="${escapeHtml(v.name)}"${v.name === prefs.ttsVoice ? ' selected' : ''}>${escapeHtml(v.name)} (${v.lang})</option>`).join('');
 }
-if('speechSynthesis' in window){
-  populateVoiceList();
-  speechSynthesis.addEventListener('voiceschanged', populateVoiceList);
+if('speechSynthesis' in window){ populateVoiceList(); speechSynthesis.addEventListener('voiceschanged', populateVoiceList); }
+document.getElementById('ttsVoice').addEventListener('change', e=>{ prefs.ttsVoice = e.target.value; save(K.prefs); });
+
+function btnLabel(n){
+  if(n === -1 || n === undefined || n === null) return 'Chưa gán';
+  return ({3:'Button Y (Trái)',0:'Button A (Phải)',2:'Button X (Trên)',1:'Button B (Dưới)',9:'Button +',10:'Joystick Click'})[n] || ('Button ' + n);
 }
-document.getElementById('ttsVoice').addEventListener('change', e=>{ prefs.ttsVoice = e.target.value; saveAll(); });
-
-const overlay = document.getElementById('overlay');
-document.getElementById('settingsBtn').addEventListener('click', ()=>{
-  document.getElementById('scoringMode').value = config.scoringMode; document.getElementById('playTo').value = config.playTo;
-  document.getElementById('winByTwo').checked = config.winByTwo; document.getElementById('autoSwapMidGame').checked = config.autoSwapMidGame;
-  document.getElementById('nameLeftInput').value = currentMatch.teamNames.left; document.getElementById('nameRightInput').value = currentMatch.teamNames.right;
-  document.getElementById('ttsEnabled').checked = prefs.ttsEnabled; document.getElementById('ttsRate').value = prefs.ttsRate;
-  populateVoiceList(); document.getElementById('ttsVoice').value = prefs.ttsVoice || '';
-  document.getElementById('buttonsSwapped').checked = prefs.buttonsSwapped;
-  updateKeymapButtons(); overlay.classList.add('show');
-});
-document.getElementById('closeSettingsBtn').addEventListener('click', ()=>overlay.classList.remove('show'));
-document.getElementById('scoringMode').addEventListener('change', e=>{ config.scoringMode = e.target.value; saveAll(); render(); });
-document.getElementById('playTo').addEventListener('change', e=>{ config.playTo = parseInt(e.target.value,10); saveAll(); render(); });
-document.getElementById('winByTwo').addEventListener('change', e=>{ config.winByTwo = e.target.checked; saveAll(); });
-document.getElementById('autoSwapMidGame').addEventListener('change', e=>{ config.autoSwapMidGame = e.target.checked; saveAll(); });
-document.getElementById('nameLeftInput').addEventListener('input', e=>{ currentMatch.teamNames.left = e.target.value || 'ĐỘI ALPHA'; saveAll(); render(); });
-document.getElementById('nameRightInput').addEventListener('input', e=>{ currentMatch.teamNames.right = e.target.value || 'ĐỘI BETA'; saveAll(); render(); });
-document.getElementById('ttsEnabled').addEventListener('change', e=>{ prefs.ttsEnabled = e.target.checked; saveAll(); });
-document.getElementById('ttsRate').addEventListener('input', e=>{ prefs.ttsRate = parseFloat(e.target.value); saveAll(); });
-
 function updateKeymapButtons(){
-  document.getElementById('map-left').textContent = btnLabel(prefs.keymap.left); document.getElementById('map-right').textContent = btnLabel(prefs.keymap.right);
-  document.getElementById('map-fault').textContent = btnLabel(prefs.keymap.fault); document.getElementById('map-undo').textContent = btnLabel(prefs.keymap.undo);
-  document.getElementById('map-plus').textContent = btnLabel(prefs.keymap.plus);
+  ['left','right','fault','undo','plus'].forEach(a => document.getElementById('map-' + a).textContent = btnLabel(prefs.keymap[a]));
 }
-function btnLabel(num){ if(num===-1||num===undefined) return 'Chưa gán'; if(num===3) return 'Button Y (Trái)'; if(num===0) return 'Button A (Phải)'; if(num===2) return 'Button X (Trên)'; if(num===1) return 'Button B (Dưới)'; if(num===9) return 'Button +'; if(num===10) return 'Joystick Click'; return 'Button '+num; }
-let listeningForAction = null;
-document.querySelectorAll('#settings [data-action], #lineupOverlay [data-action]').forEach(btn=>{ btn.addEventListener('click', ()=>{ listeningForAction = btn.getAttribute('data-action'); btn.textContent = 'Nhấn nút...'; }); });
+document.querySelectorAll('[data-action]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{ listeningForAction = btn.dataset.action; btn.textContent = 'Nhấn nút trên tay cầm...'; });
+});
 
-window.addEventListener('gamepadconnected', ()=>{ el.gpStatus.textContent = '🎮 Đã kết nối Joy-Con'; el.gpStatus.classList.add('connected'); });
+/* ============================================================================
+   KHỞI ĐỘNG
+   ========================================================================== */
+applyTheme();
 requestAnimationFrame(pollGamepads);
 render();
+fitScoreFonts(true);
 applyKeepAwake();
+if(state.gameOver || state.matchOver) openResult();
+
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.addEventListener('updatefound', ()=>{
+        const sw = reg.installing;
+        sw?.addEventListener('statechange', ()=>{
+          if(sw.state === 'installed' && navigator.serviceWorker.controller) toast('Đã có bản mới — mở lại app để cập nhật', 4000);
+        });
+      });
+    }).catch(()=>{});
+  });
 }
 })();
 </script>
