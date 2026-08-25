@@ -176,7 +176,11 @@ body.barHidden #barHandle { display:block; }
 .bg-cell.serving { opacity:1; border:7px solid var(--accent); background:var(--accent-wash);
   box-shadow: inset 0 0 70px var(--accent-glow), 0 0 26px var(--accent-glow); }
 .bg-cell.receiving { opacity:.72; border-style:dashed; border-color:rgba(128,128,128,.42); }
+/* Ô của người không giao cũng không nhận: luật cho họ đứng bất kỳ đâu, nên app
+   không được vẽ như thể đã biết chắc chỗ đứng. */
+.bg-cell.free { opacity:.34; border-style:dotted; }
 .bg-cell.vacant { opacity:.16; }
+body.simpleCourt .bg-court-mesh { display:none; }
 
 .cellLabel { position:absolute; left:0; right:0; display:flex; flex-direction:column; align-items:center;
   gap:2px; padding:0 8px; text-align:center; }
@@ -196,6 +200,14 @@ body.sun .clName { text-shadow:none; }
 .bg-cell.serving .clName.asBox { opacity:1; }
 .clBox { font-size:clamp(10px,1.7vmin,14px); font-weight:800; letter-spacing:1.6px; color:var(--muted); }
 .bg-cell.serving .clBox { color:var(--text); opacity:.9; }
+.bg-cell.free .clRole { background:none; color:var(--muted); border:1px dashed rgba(128,128,128,.5);
+  padding:2px 10px; font-size:clamp(10px,1.6vmin,13px); letter-spacing:1.6px; display:block; }
+/* Đổi chỗ sau giao (stacking): thứ người ta hay quên là "lượt này có cần không" */
+.clStack { font-size:clamp(10px,1.7vmin,14px); font-weight:900; letter-spacing:1.4px;
+  padding:2px 9px; border-radius:5px; margin-top:2px; }
+.clStack:empty { display:none; }
+.clStack.need { background:var(--danger); color:#fff; }
+.clStack.ok { color:var(--muted); border:1px solid rgba(128,128,128,.4); }
 
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.72); display:none; align-items:center; justify-content:center; z-index:60; padding:18px; }
 body.sun .modal { background:rgba(40,50,70,.45); }
@@ -289,6 +301,12 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
 .slotCard .slotWhere { font-size:10.5px; color:var(--muted); margin-top:5px; }
 .slotCard.focused { border-color:var(--accent); }
 .slotCard select { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+/* Nằm trên cái select phủ toàn thẻ, nếu không sẽ bị nuốt click */
+.prefRow { position:relative; z-index:2; display:flex; align-items:center; gap:6px; margin-top:9px; }
+.prefRow .lbl { font-size:10px; font-weight:800; letter-spacing:1px; color:var(--muted); }
+.prefBtn { flex:1; background:var(--panel); color:var(--muted); border:1px solid var(--panel-line);
+  border-radius:7px; padding:5px 0; font-size:11.5px; font-weight:700; cursor:pointer; }
+.prefBtn.on { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 
 .histRow { background:var(--field); border:1px solid var(--panel-line); border-radius:10px; padding:10px 12px; margin-top:8px; font-size:13px; }
 .histRow .hTop { display:flex; justify-content:space-between; gap:10px; font-weight:700; }
@@ -315,10 +333,10 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
     <div class="half" id="halfLeft" data-screen="left">
       <div class="bg-court-mesh" id="meshLeft">
         <div class="bg-cell" data-cell="left-top" data-pos="top">
-          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span></div>
+          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span><span class="clStack"></span></div>
         </div>
         <div class="bg-cell" data-cell="left-bottom" data-pos="bottom">
-          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span></div>
+          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span><span class="clStack"></span></div>
         </div>
       </div>
       <div class="teamname"><span id="nameLeftEl">ĐỘI XANH</span><span class="gameCount" id="dotsLeftEl"></span></div>
@@ -329,10 +347,10 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
     <div class="half" id="halfRight" data-screen="right">
       <div class="bg-court-mesh" id="meshRight">
         <div class="bg-cell" data-cell="right-top" data-pos="top">
-          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span></div>
+          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span><span class="clStack"></span></div>
         </div>
         <div class="bg-cell" data-cell="right-bottom" data-pos="bottom">
-          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span></div>
+          <div class="cellLabel"><span class="clRole"></span><span class="clName"></span><span class="clBox"></span><span class="clStack"></span></div>
         </div>
       </div>
       <div class="teamname"><span id="nameRightEl">ĐỘI ĐỎ</span><span class="gameCount" id="dotsRightEl"></span></div>
@@ -432,6 +450,9 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
       <select id="playTo"><option value="11">11 điểm</option><option value="15">15 điểm</option><option value="21">21 điểm</option></select>
     </div>
     <div class="row"><label for="winByTwo">Cách biệt 2 điểm</label><input type="checkbox" id="winByTwo" checked></div>
+    <div class="row"><label for="simpleCourt">Sơ đồ sân</label>
+      <select id="simpleCourt"><option value="0">Đầy đủ (vẽ 4 ô)</option><option value="1">Gọn (chỉ điểm và người giao)</option></select>
+    </div>
     <div class="row"><label for="midSwitch">Đổi sân giữa ván</label>
       <select id="midSwitch"><option value="off">Tắt</option><option value="deciding">Chỉ ván quyết định</option><option value="every">Mọi ván</option></select>
     </div>
@@ -490,6 +511,12 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
         <span class="slotTag" data-slot-label="0-even">Ô CHẴN · BÊN PHẢI</span>
         <div class="slotName empty" data-slot-name="0-even">Chưa chọn</div>
         <div class="slotWhere" data-slot-where="0-even"></div>
+        <div class="prefRow" data-pref-row="0-even">
+          <span class="lbl">BỀN Ở</span>
+          <button class="prefBtn" data-pref="0-even|L">Trái</button>
+          <button class="prefBtn" data-pref="0-even|R">Phải</button>
+          <button class="prefBtn" data-pref="0-even|">Tuỳ</button>
+        </div>
         <select data-slot-select="0-even" aria-label="Chọn người ô chẵn đội xanh"></select>
       </div>
       <div class="slotCard" data-slot="1-even">
@@ -497,6 +524,12 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
         <span class="slotTag" data-slot-label="1-even">Ô CHẴN · BÊN PHẢI</span>
         <div class="slotName empty" data-slot-name="1-even">Chưa chọn</div>
         <div class="slotWhere" data-slot-where="1-even"></div>
+        <div class="prefRow" data-pref-row="1-even">
+          <span class="lbl">BỀN Ở</span>
+          <button class="prefBtn" data-pref="1-even|L">Trái</button>
+          <button class="prefBtn" data-pref="1-even|R">Phải</button>
+          <button class="prefBtn" data-pref="1-even|">Tuỳ</button>
+        </div>
         <select data-slot-select="1-even" aria-label="Chọn người ô chẵn đội đỏ"></select>
       </div>
       <div class="slotCard" data-slot="0-odd">
@@ -504,6 +537,12 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
         <span class="slotTag" data-slot-label="0-odd">Ô LẺ · BÊN TRÁI</span>
         <div class="slotName empty" data-slot-name="0-odd">Chưa chọn</div>
         <div class="slotWhere" data-slot-where="0-odd"></div>
+        <div class="prefRow" data-pref-row="0-odd">
+          <span class="lbl">BỀN Ở</span>
+          <button class="prefBtn" data-pref="0-odd|L">Trái</button>
+          <button class="prefBtn" data-pref="0-odd|R">Phải</button>
+          <button class="prefBtn" data-pref="0-odd|">Tuỳ</button>
+        </div>
         <select data-slot-select="0-odd" aria-label="Chọn người ô lẻ đội xanh"></select>
       </div>
       <div class="slotCard" data-slot="1-odd">
@@ -511,6 +550,12 @@ body.sun #timeoutOverlay { background:rgba(255,255,255,.95); }
         <span class="slotTag" data-slot-label="1-odd">Ô LẺ · BÊN TRÁI</span>
         <div class="slotName empty" data-slot-name="1-odd">Chưa chọn</div>
         <div class="slotWhere" data-slot-where="1-odd"></div>
+        <div class="prefRow" data-pref-row="1-odd">
+          <span class="lbl">BỀN Ở</span>
+          <button class="prefBtn" data-pref="1-odd|L">Trái</button>
+          <button class="prefBtn" data-pref="1-odd|R">Phải</button>
+          <button class="prefBtn" data-pref="1-odd|">Tuỳ</button>
+        </div>
         <select data-slot-select="1-odd" aria-label="Chọn người ô lẻ đội đỏ"></select>
       </div>
     </div>
@@ -561,7 +606,7 @@ const DEFAULT_CONFIG = {
   playersPerTeam: 2, bestOf: 1, midSwitch: 'deciding'
 };
 const DEFAULT_KEYMAP = { left:3, right:0, fault:2, undo:1, plus:9, lineupSelect:10 };
-const DEFAULT_PREFS  = { ttsEnabled:true, ttsRate:1, ttsVoice:'', buttonsSwapped:true, displaySwapped:false, keepAwake:true, sun:false, keymap:DEFAULT_KEYMAP };
+const DEFAULT_PREFS  = { ttsEnabled:true, ttsRate:1, ttsVoice:'', buttonsSwapped:true, displaySwapped:false, keepAwake:true, sun:false, simpleCourt:false, locked:false, keymap:DEFAULT_KEYMAP };
 
 const clone = o => JSON.parse(JSON.stringify(o));
 const other = i => i === 0 ? 1 : 0;
@@ -579,7 +624,9 @@ const LEGACY_NAMES = { 'ĐỘI ALPHA': 'ĐỘI XANH', 'ĐỘI BETA': 'ĐỘI Đ�
 const isSingles = () => config.playersPerTeam === 1;
 const gamesNeeded = () => Math.floor(config.bestOf / 2) + 1;
 
-function freshTeam(i, name){ return { id:i, name, lineup:[null,null], evenSlot:0, score:0, gamesWon:0, timeouts:0 }; }
+function freshTeam(i, name){
+  return { id:i, name, lineup:[null,null], prefSide:[null,null], evenSlot:0, score:0, gamesWon:0, timeouts:0 };
+}
 
 function timeoutsPerGame(){ return config.playTo >= 21 ? 3 : 2; }
 
@@ -644,6 +691,8 @@ function normalizeState(){
     out.gamesWon = Math.max(0, out.gamesWon | 0);
     out.timeouts = Math.max(0, out.timeouts | 0);
     out.lineup = Array.isArray(out.lineup) ? [out.lineup[0] ?? null, out.lineup[1] ?? null] : [null,null];
+    const ps = Array.isArray(out.prefSide) ? out.prefSide : [];
+    out.prefSide = [0,1].map(i => (ps[i] === 'L' || ps[i] === 'R') ? ps[i] : null);
     out.evenSlot = out.evenSlot === 1 ? 1 : 0;
     out.name = String(out.name || base.teams[i].name).slice(0,20);
     if(LEGACY_NAMES[out.name]) out.name = LEGACY_NAMES[out.name];   // đổi tên mặc định cũ sang tên mới
@@ -725,6 +774,24 @@ function playerKey(teamIdx, slot){ return state.teams[teamIdx].lineup[slot] || (
 function playerLabel(teamIdx, slot){
   return memberName(state.teams[teamIdx].lineup[slot]) || (state.teams[teamIdx].name + ' · ' + (slot === 0 ? 'ô chẵn' : 'ô lẻ'));
 }
+/** Ô chẵn nằm bên tay PHẢI của đội đó khi nhìn về lưới, ô lẻ bên tay TRÁI. */
+function sideOfQuad(teamIdx, realQuad){
+  return realQuad === evenQuadOf(physSideOfTeam(teamIdx)) ? 'R' : 'L';
+}
+/** Luật chỉ ràng buộc chỗ đứng của người giao và người nhận; người còn lại
+ *  được đứng bất kỳ đâu. Nên "có phải đổi chỗ sau giao không" chỉ phụ thuộc
+ *  đúng một người: người bị ràng buộc của đội đó.
+ *  Trả về null nếu chưa khai báo bên ưa thích, true nếu cần đổi chỗ. */
+function needsStack(teamIdx){
+  if(isSingles()) return null;
+  const serving = teamIdx === state.servingTeam;
+  const slot = serving ? state.serverSlot : slotAtQuad(teamIdx, receiverQuad());
+  const pref = state.teams[teamIdx].prefSide[slot];
+  if(!pref) return null;
+  const quad = serving ? serverQuad() : receiverQuad();
+  return sideOfQuad(teamIdx, quad) !== pref;
+}
+
 /** Nhãn người giao trên thanh trên. Chưa xếp đội hình thì đừng bịa tên dài —
  *  rơi về số tay giao, ngắn mà vẫn đủ phân biệt hai người trong đội. */
 function serverDisplayName(){
@@ -943,10 +1010,11 @@ function redo(){
 function newMatch(){
   const names = state.teams.map(t => t.name);
   const lineups = state.teams.map(t => clone(t.lineup));
+  const prefs2 = state.teams.map(t => clone(t.prefSide));
   const sideOf = clone(state.sideOf);
   state = freshState();
   state.sideOf = sideOf;
-  state.teams.forEach((t,i)=>{ t.name = names[i]; t.lineup = lineups[i]; });
+  state.teams.forEach((t,i)=>{ t.name = names[i]; t.lineup = lineups[i]; t.prefSide = prefs2[i]; });
   state.firstServerTeam = Math.random() < 0.5 ? 0 : 1;
   state.servingTeam = state.firstServerTeam;
   state.serverSlot = 0;
@@ -1061,28 +1129,56 @@ el.cells = {}; document.querySelectorAll('[data-cell]').forEach(c => el.cells[c.
 /* ── Ngăn xếp modal ───────────────────────────────────────────────────────
    PWA chạy fullscreen nên nút back của Android sẽ thoát app nếu không đẩy
    một mục vào history mỗi lần mở lớp phủ. */
+let confirmResolve = null;
 const modalStack = [];
+const MODAL_Z = 60;
+let ignorePop = false, ignorePopTimer = null;
+
+/** z-index gán theo độ sâu ngăn xếp. Nếu để chung một mức, thứ tự đè hoàn toàn
+ *  do vị trí trong DOM quyết định — mà confirmOverlay lại đứng trước
+ *  resultOverlay và historyOverlay, nên bảng xác nhận bị chôn bên dưới đúng
+ *  cái panel vừa mở nó. */
 function openModal(m){
-  if(!m || m.classList.contains('show')) return;
-  m.classList.add('show');
+  if(!m || modalStack.includes(m)) return;
+  const wasEmpty = modalStack.length === 0;
   modalStack.push(m);
-  try{ history.pushState({ pbModal: modalStack.length }, ''); }catch(e){}
+  m.style.zIndex = String(MODAL_Z + modalStack.length * 2);
+  m.classList.add('show');
+  // Một mục history cho cả chồng lớp phủ. Đẩy mỗi lớp một mục thì mọi đường
+  // đóng không đi qua closeModal đều làm lệch ngăn xếp, và nút back đơ dần.
+  if(wasEmpty){ try{ history.pushState({ pbModal: 1 }, ''); }catch(e){} }
+}
+function detachModal(m){
+  m.classList.remove('show');
+  m.style.zIndex = '';
+  if(m === el.confirmOverlay && confirmResolve){
+    const r = confirmResolve; confirmResolve = null; r(false);
+  }
+}
+/** Cờ nuốt popstate tự huỷ sau 600ms — nếu môi trường nào đó không phát
+ *  popstate cho history.back() thì cờ cũng không kẹt lại vĩnh viễn. */
+function armIgnorePop(){
+  ignorePop = true;
+  clearTimeout(ignorePopTimer);
+  ignorePopTimer = setTimeout(()=>{ ignorePop = false; }, 600);
 }
 function closeModal(m){
   const i = modalStack.lastIndexOf(m);
-  if(i === -1){ m.classList.remove('show'); return; }
-  if(i === modalStack.length - 1){ try{ history.back(); return; }catch(e){} }
+  if(i === -1){ detachModal(m); return; }
   modalStack.splice(i, 1);
-  m.classList.remove('show');
+  detachModal(m);
+  if(modalStack.length === 0){ armIgnorePop(); try{ history.back(); }catch(e){ ignorePop = false; } }
 }
+function closeAllModals(){
+  while(modalStack.length) detachModal(modalStack.pop());
+}
+// Nút back đóng toàn bộ lớp phủ đang mở — một mục history thì trả lại một lần.
 window.addEventListener('popstate', ()=>{
-  const m = modalStack.pop();
-  if(m) m.classList.remove('show');
+  if(ignorePop){ ignorePop = false; clearTimeout(ignorePopTimer); return; }
+  closeAllModals();
 });
-function closeAllModals(){ while(modalStack.length) closeModal(modalStack[modalStack.length - 1]); }
 
 /** Hỏi lại trước thao tác không hoàn tác được. Trả về Promise<boolean>. */
-let confirmResolve = null;
 function askConfirm(title, msg, okLabel){
   el.cfTitle.textContent = title;
   el.cfMsg.textContent = msg;
@@ -1095,6 +1191,10 @@ function settleConfirm(v){
   closeModal(el.confirmOverlay);
   if(r) r(v);
 }
+// Chạm nền ngoài bảng xác nhận = huỷ, để không kẹt khi lỡ tay.
+document.getElementById('confirmOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'confirmOverlay') settleConfirm(false);
+});
 document.getElementById('cfOk').addEventListener('click', ()=>settleConfirm(true));
 document.getElementById('cfCancel').addEventListener('click', ()=>settleConfirm(false));
 
@@ -1158,20 +1258,31 @@ function renderCells(screenSide, teamIdx, isServing){
 
     const serving   = live && isServing && realQuad === sQuad;
     const receiving = live && !isServing && realQuad === rQuad;
+    const free      = live && occupied && !serving && !receiving && !isSingles();
     cell.classList.toggle('serving', serving);
     cell.classList.toggle('receiving', receiving);
+    cell.classList.toggle('free', free);
     cell.classList.toggle('vacant', !occupied);
 
-    const role = serving ? (isSingles() ? 'GIAO' : 'GIAO · TAY ' + state.serverNumber) : (receiving ? 'NHẬN' : '');
+    const role = serving ? (isSingles() ? 'GIAO' : 'GIAO · TAY ' + state.serverNumber)
+               : receiving ? 'NHẬN' : free ? 'TỰ DO' : '';
     cell.querySelector('.clRole').textContent = role;
 
-    // Chưa xếp người thì tên ô chẵn/lẻ chính là thông tin chính, cho nó cỡ lớn
-    // thay vì để chữ "Chưa chọn" chiếm chỗ mà không nói lên điều gì.
     const boxText = realQuad === evenQ ? 'Ô CHẴN' : 'Ô LẺ';
     const nameEl = cell.querySelector('.clName');
     nameEl.textContent = !occupied ? '' : (name || boxText);
     nameEl.classList.toggle('asBox', occupied && !name);
-    cell.querySelector('.clBox').textContent = (occupied && name) ? boxText : '';
+
+    // "Từ ô chẵn" mô tả một hành động lúc giao bóng, không phải chỗ đứng cả pha.
+    // Khi chưa xếp người, dòng lớn đã là tên ô rồi nên không lặp lại ở dòng nhỏ.
+    cell.querySelector('.clBox').textContent = !name ? ''
+      : serving ? 'GIAO TỪ ' + boxText : receiving ? 'NHẬN Ở ' + boxText : '';
+
+    const stack = cell.querySelector('.clStack');
+    const need = (serving || receiving) ? needsStack(teamIdx) : null;
+    stack.textContent = need === null ? '' : (need ? '⇄ ĐỔI CHỖ SAU GIAO' : '✓ ĐÚNG BÊN RỒI');
+    stack.classList.toggle('need', need === true);
+    stack.classList.toggle('ok', need === false);
   });
 }
 
@@ -1282,6 +1393,9 @@ setInterval(()=>{
    MÀN HÌNH KẾT QUẢ
    ========================================================================== */
 function openResult(){
+  // evaluateGameEnd hẹn giờ 450ms; trong khoảng đó người dùng có thể đã bấm
+  // "Đánh tiếp" hoặc hoàn tác, lúc ấy không được bật lại màn kết quả nữa.
+  if(!state.gameOver && !state.matchOver) return;
   const w = state.winner;
   el.resultKicker.textContent = state.matchOver ? 'KẾT THÚC TRẬN' : 'KẾT THÚC VÁN ' + state.games.length;
   el.resultWinner.textContent = w === null ? '—' : state.teams[w].name;
@@ -1337,7 +1451,9 @@ function speak(text){
 function speakScore(){
   if(state.gameOver || state.matchOver) return;
   const s = state.teams[state.servingTeam].score, r = state.teams[other(state.servingTeam)].score;
-  speak((config.scoringMode === 'rally' || isSingles()) ? `${s}, ${r}` : `${s}, ${r}, ${state.serverNumber}`);
+  const base = (config.scoringMode === 'rally' || isSingles()) ? `${s}, ${r}` : `${s}, ${r}, ${state.serverNumber}`;
+  // Người chơi lúc này đứng cuối sân, không nhìn điện thoại — nhắc bằng giọng mới kịp.
+  speak(needsStack(state.servingTeam) === true ? base + '. Đổi chỗ.' : base);
 }
 function speakServe(){ speak(`${state.teams[state.servingTeam].name} giao bóng`); }
 
@@ -1358,7 +1474,7 @@ function renderSlots(){
   document.querySelectorAll('[data-team-name]').forEach(n => n.textContent = state.teams[Number(n.dataset.teamName)].name);
   document.getElementById('lineupNote').textContent = isSingles()
     ? 'Chế độ đơn: mỗi đội chỉ chọn một người. Vị trí đứng tự suy từ điểm số của chính người đó.'
-    : 'Ô chẵn là ô bên tay phải của đội khi nhìn về lưới — nơi người giao đứng khi đội mình có điểm chẵn.';
+    : 'Ô chẵn là ô bên tay phải của đội khi nhìn về lưới — nơi người giao đứng khi đội mình có điểm chẵn. Chọn thêm "bền ở" nếu người đó luôn muốn đánh một bên, app sẽ nhắc lượt nào cần đổi chỗ sau giao.';
   SLOT_ORDER.forEach((key, i)=>{
     const { teamIdx, slot } = parseSlotKey(key);
     const card = document.querySelector(`.slotCard[data-slot="${key}"]`);
@@ -1375,6 +1491,13 @@ function renderSlots(){
     document.querySelector(`[data-slot-where="${key}"]`).textContent = 'Đang ở nửa ' + (sq === 'top' ? 'TRÊN' : 'DƯỚI') + ' màn hình';
     document.querySelector(`[data-slot-select="${key}"]`).innerHTML =
       '<option value="">— Trống —</option>' + members.map(m => `<option value="${m.id}"${m.id === id ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+
+    const row = document.querySelector(`[data-pref-row="${key}"]`);
+    row.style.display = isSingles() ? 'none' : '';
+    const cur = state.teams[teamIdx].prefSide[slot] || '';
+    row.querySelectorAll('.prefBtn').forEach(b=>{
+      b.classList.toggle('on', b.dataset.pref.split('|')[1] === cur);
+    });
     card.classList.toggle('focused', i === lineupFocusIndex);
   });
 }
@@ -1385,6 +1508,16 @@ function assignSlot(key, memberId){
   t.lineup[slot] = memberId || null;
   save(K.state); renderSlots(); requestRender();
 }
+/* Bên ưa thích khi đánh bóng bền — dùng để tính "lượt này có phải đổi chỗ không". */
+document.querySelectorAll('.prefBtn').forEach(btn=>{
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    const [key, val] = btn.dataset.pref.split('|');
+    const { teamIdx, slot } = parseSlotKey(key);
+    state.teams[teamIdx].prefSide[slot] = val || null;
+    save(K.state); renderSlots(); requestRender();
+  });
+});
 document.querySelectorAll('.slotCard').forEach(card=>{
   const key = card.dataset.slot;
   card.addEventListener('click', ()=>{ lineupFocusIndex = SLOT_ORDER.indexOf(key); renderSlots(); });
@@ -1535,6 +1668,7 @@ function toggleSun(){
   prefs.sun = !prefs.sun; save(K.prefs); applyTheme(); requestRender();
   toast(prefs.sun ? '🌞 Chế độ nắng: BẬT' : '🌙 Chế độ tối: BẬT');
 }
+function applySimpleCourt(){ document.body.classList.toggle('simpleCourt', !!prefs.simpleCourt); }
 function applyTheme(){
   document.body.classList.toggle('sun', !!prefs.sun);
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -1608,7 +1742,7 @@ function pollGamepads(){
           if(idx === prefs.keymap.lineupSelect){
             const sel = document.querySelector(`[data-slot-select="${SLOT_ORDER[lineupFocusIndex]}"]`);
             if(sel.showPicker){ try{ sel.showPicker(); }catch(e){ sel.focus(); } } else { sel.focus(); sel.click(); }
-          } else if(idx === prefs.keymap.undo) el.lineupOverlay.classList.remove('show');
+          } else if(idx === prefs.keymap.undo) closeModal(el.lineupOverlay);
         } else {
           if(idx === prefs.keymap.left)       scoreScreenSide(screenSideForButton('left'));
           else if(idx === prefs.keymap.right) scoreScreenSide(screenSideForButton('right'));
@@ -1700,6 +1834,7 @@ document.getElementById('settingsBtn').addEventListener('click', ()=>{
   g('playTo').value = String(config.playTo);
   g('winByTwo').checked = config.winByTwo;
   g('midSwitch').value = config.midSwitch;
+  g('simpleCourt').value = prefs.simpleCourt ? '1' : '0';
   g('name0Input').value = state.teams[0].name;
   g('name1Input').value = state.teams[1].name;
   g('ttsEnabled').checked = prefs.ttsEnabled;
@@ -1742,6 +1877,11 @@ onCfg('playersPerTeam', e => {
 });
 document.getElementById('name0Input').addEventListener('input', e=>{ state.teams[0].name = e.target.value || DEFAULT_NAMES[0]; commit(); });
 document.getElementById('name1Input').addEventListener('input', e=>{ state.teams[1].name = e.target.value || DEFAULT_NAMES[1]; commit(); });
+document.getElementById('simpleCourt').addEventListener('change', e=>{
+  prefs.simpleCourt = e.target.value === '1'; save(K.prefs); applySimpleCourt();
+  requestAnimationFrame(()=>fitScoreFonts(true));
+  toast(prefs.simpleCourt ? 'Sơ đồ gọn — chỉ còn điểm và người giao' : 'Đã bật lại sơ đồ 4 ô');
+});
 document.getElementById('ttsEnabled').addEventListener('change', e=>{ prefs.ttsEnabled = e.target.checked; save(K.prefs); });
 document.getElementById('ttsRate').addEventListener('input', e=>{ prefs.ttsRate = parseFloat(e.target.value); save(K.prefs); });
 document.getElementById('buttonsSwapped').addEventListener('change', e=>{ prefs.buttonsSwapped = e.target.checked; save(K.prefs); requestRender(); });
@@ -1788,6 +1928,7 @@ document.querySelectorAll('[data-action]').forEach(btn=>{
    KHỞI ĐỘNG
    ========================================================================== */
 applyTheme();
+applySimpleCourt();
 document.body.classList.toggle('locked', !!prefs.locked);
 restoreClock();
 requestAnimationFrame(pollGamepads);
