@@ -8,7 +8,7 @@
  *  - Nhận diện app shell bằng đường dẫn đã chuẩn hoá, không dùng endsWith().
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL_CACHE = 'pb-shell-' + VERSION;
 const ASSET_CACHE = 'pb-assets-' + VERSION;
 const KEEP = [SHELL_CACHE, ASSET_CACHE];
