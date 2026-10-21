@@ -1083,7 +1083,7 @@ function swapSides(silent){
 }
 
 function undo(){
-  if(!past.length){ toast('Không còn gì để hoàn tác'); return; }
+  if(!past.length){ mbFlash('Hết hoàn tác'); return; }
   future.push(clone(state));
   state = past.pop();
   commit(); closeResult();
@@ -1990,7 +1990,7 @@ window.addEventListener('gamepaddisconnected', ()=>{
    Tên "bài hát" hiển thị trên vòng = tỷ số ngắn gọn, ví dụ 0-0-2.
    Dùng var (không dùng let) vì render() có thể chạy trước khi khối này nạp.
    ========================================================================== */
-var mbAudio = null, mbOn = false, mbLastAt = 0, mbLastTitle = '';
+var mbAudio = null, mbOn = false, mbLastAt = 0, mbLastTitle = '', mbLog = 'Sẵn sàng';
 var MB_KEY = 'pb7_mband';
 
 /** WAV im lặng 6 giây (Chrome Android chỉ hiện điều khiển nhạc với âm thanh > 5 giây). */
@@ -2021,11 +2021,13 @@ function mbUpdateMeta(){
   if(!mbOn || !('mediaSession' in navigator)) return;
   if(el.mbTeam) mbTeamUI();
   const title = mbScoreTitle();
-  if(title === mbLastTitle) return;
-  mbLastTitle = title;
+  const key = title + '|' + mbLog;
+  if(key === mbLastTitle) return;
+  mbLastTitle = key;
   try{
     navigator.mediaSession.metadata = new MediaMetadata({
-      title, artist: '', album: '',
+      // Dòng dưới = trạng thái lần bấm gần nhất, ngắn để vòng không chạy chữ.
+      title, artist: mbLog, album: '',
       artwork: [{ src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }]
     });
   }catch(e){}
@@ -2048,8 +2050,8 @@ var mbLast = { btn:null, at:0, did:false }, mbConfirmUntil = 0;
 
 /** Đang hội ý hoặc nghỉ giữa ván thì mọi nút đều là "vào sân". */
 function mbBackToCourt(){
-  if(inBreak()){ endBreak(false); mbFlash('vào sân'); return true; }
-  if(inTimeout()){ endTimeout(false); mbFlash('vào sân'); return true; }
+  if(inBreak()){ endBreak(false); mbFlash('Vào sân'); return true; }
+  if(inTimeout()){ endTimeout(false); mbFlash('Vào sân'); return true; }
   return false;
 }
 function mbKeepPlaying(){
@@ -2085,7 +2087,7 @@ function mbTeamPress(which){            // which: 'opp' | 'me'
     if(mbLastScored) undo();              // bỏ điểm vừa ghi ở lần bấm đầu
     mbLastScored = false;
     mbGiveServe(team);
-    mbFlash(state.teams[team].name + ' giao');
+    mbFlash((which === 'me' ? 'Tôi' : 'Đối') + ' giao');
     return;
   }
   mbLastScored = false;
@@ -2094,14 +2096,14 @@ function mbTeamPress(which){            // which: 'opp' | 'me'
   const before = past.length;
   rallyWonBy(team);
   mbLastScored = past.length > before;
-  mbFlash(state.teams[team].name + ' +1');
+  mbFlash((which === 'me' ? 'Tôi' : 'Đối') + ' +1');
 }
 var mbLastScored = false;
 
 function mbMiddlePress(){
   mbKeepPlaying();
   const now = performance.now();
-  if(now < mbConfirmUntil){ mbConfirmUntil = 0; mbLast = { btn:null, at:0 }; newMatch(); mbFlash('ván mới'); return; }
+  if(now < mbConfirmUntil){ mbConfirmUntil = 0; mbLast = { btn:null, at:0 }; newMatch(); mbFlash('Ván mới'); return; }
   const dbl = mbIsDouble('mid');
   if(dbl === null) return;
   if(dbl){
@@ -2112,25 +2114,25 @@ function mbMiddlePress(){
   }
   mbLastUndid = false;
   if(mbBackToCourt()) return;
-  if(!past.length){ toast('Không còn gì để hoàn tác'); return; }
+  if(!past.length){ mbFlash('Hết hoàn tác'); return; }
   undo(); speak('Hoàn tác'); mbLastUndid = true;
-  mbFlash('hoàn tác');
+  mbFlash('Hoàn tác');
 }
 var mbLastUndid = false;
 
 function mbNewGame(){
-  if(state.matchOver){ newMatch(); mbFlash('ván mới'); return; }
-  if(state.gameOver){ nextGame(); mbFlash('ván mới'); return; }
+  if(state.matchOver){ newMatch(); mbFlash('Ván mới'); return; }
+  if(state.gameOver){ nextGame(); mbFlash('Ván mới'); return; }
   const fresh = state.teams[0].score === 0 && state.teams[1].score === 0;
-  if(fresh){ newMatch(); mbFlash('ván mới'); return; }
+  if(fresh){ newMatch(); mbFlash('Ván mới'); return; }
   // Đang giữa ván mà xoá hết điểm thì không lấy lại được, nên hỏi thêm một lần.
   mbConfirmUntil = performance.now() + 4000;
   speak('Ván mới? Bấm nút giữa thêm một lần để xác nhận');
-  toast('Ván mới? Bấm ⏯ thêm 1 lần trong 4 giây để xác nhận', 4000);
-  mbFlash('xác nhận?');
+  mbFlash('Ván mới?');
 }
 
 function mbFlash(name){
+  mbLog = name; mbLastTitle = ''; mbUpdateMeta();
   el.mbStatus.textContent = '⌚ ' + name;
   clearTimeout(mbFlash._t);
   mbFlash._t = setTimeout(mbStatusUI, 1200);
@@ -2164,7 +2166,7 @@ async function mbStart(){
   }
   try{ await mbAudio.play(); }
   catch(e){ toast('Chạm vào màn hình một lần để bật Mi Band'); return false; }
-  mbOn = true; mbLastTitle = '';
+  mbOn = true; mbLastTitle = ''; mbLog = 'Sẵn sàng';
   mbSetHandlers(true);
   try{ navigator.mediaSession.playbackState = 'playing'; }catch(e){}
   mbUpdateMeta(); mbStatusUI();
@@ -2195,7 +2197,7 @@ el.mbStatus.addEventListener('click', async ()=>{
   if(mbOn){ mbStop(); toast('Mi Band: TẮT'); try{ localStorage.setItem(MB_KEY, '0'); }catch(e){} return; }
   if(await mbStart()){
     try{ localStorage.setItem(MB_KEY, '1'); }catch(e){}
-    toast('Mi Band: BẬT — trên: ' + state.teams[other(mbMyTeam)].name + ' · dưới: ' + state.teams[mbMyTeam].name + ' · bấm đúp = được giao · giữa: hoàn tác, đúp = ván mới', 6000);
+    toast('⌚ Mi Band: BẬT');
   }
 });
 // Đã bật từ lần trước: trình duyệt chỉ cho phát âm thanh sau một lần chạm, nên chờ lần chạm đầu.
