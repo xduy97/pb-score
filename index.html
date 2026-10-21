@@ -171,6 +171,7 @@ body.barHidden #barHandle { display:block; }
 .linkBtn { background:none; border:none; padding:7px 4px; margin:0; font:inherit; color:var(--muted); cursor:pointer; border-radius:8px; }
 .linkBtn:hover { color:var(--text); }
 .linkBtn.active { color:var(--ok); }
+.linkBtn.warn { color:var(--danger); font-weight:600; }
 #formatTag { white-space:nowrap; }
 .iconBtn { background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; padding:9px; border-radius:9px; transition:all .2s; line-height:1; }
 .iconBtn:hover { color:var(--text); }
@@ -1649,6 +1650,8 @@ function speak(text){
     const v = voices.find(x => x.name === prefs.ttsVoice) || voices.find(x => x.lang?.toLowerCase().startsWith('vi'));
     if(v) u.voice = v;
   }
+  // Giọng đọc có thể làm tạm dừng âm thanh nền của chế độ Mi Band → giành lại ngay khi đọc xong.
+  u.onend = u.onerror = ()=>{ if(typeof mbResume === 'function' && mbOn){ mbResume(); mbLastTitle = ''; mbUpdateMeta(); } };
   speechSynthesis.speak(u);
 }
 function speakScore(){
@@ -2139,7 +2142,9 @@ function mbFlash(name){
 }
 function mbStatusUI(){
   el.mbStatus.classList.toggle('active', mbOn);
-  el.mbStatus.textContent = mbOn ? '⌚ Mi Band: bật' : '⌚ Mi Band: tắt';
+  el.mbStatus.textContent = !mbOn ? '⌚ Mi Band: tắt'
+    : (mbAudio && mbAudio.paused) ? '⌚ mất quyền — chạm màn hình' : '⌚ Mi Band: bật';
+  el.mbStatus.classList.toggle('warn', !!(mbOn && mbAudio && mbAudio.paused));
   if(el.mbTeam) mbTeamUI();
 }
 
@@ -2157,12 +2162,33 @@ function mbSetHandlers(on){
   set('seekforward', null);
 }
 
+/* Vì sao vòng có thể nhảy về Spotify:
+   - Hệ điều hành chỉ coi trang là "trình phát" khi âm thanh của trang ĐANG phát.
+     Giọng đọc điểm (speechSynthesis) hay cuộc gọi/thông báo có thể tạm dừng nó,
+     lúc đó "đang phát" quay về app nhạc dùng gần nhất (Spotify).
+   - Nên: xin quyền phát kiểu "playback", tự phát lại ngay khi bị dừng,
+     và cứ 1,5 giây kiểm tra một lần, đồng thời gửi lại tiêu đề + nút. */
+var mbWatchId = null;
+function mbResume(){
+  if(!mbOn || !mbAudio) return;
+  if(mbAudio.paused){
+    mbAudio.play().then(()=>{ mbLastTitle = ''; mbSetHandlers(true); mbUpdateMeta(); mbStatusUI(); })
+      .catch(()=>{ mbStatusUI(); });
+  }
+  try{ navigator.mediaSession.playbackState = 'playing'; }catch(e){}
+}
 async function mbStart(){
   if(!('mediaSession' in navigator)){ toast('Trình duyệt này không hỗ trợ điều khiển nhạc'); return false; }
+  // Safari 16.4+: phát kiểu "playback" để giành quyền điều khiển nhạc từ app khác.
+  try{ if(navigator.audioSession) navigator.audioSession.type = 'playback'; }catch(e){}
   if(!mbAudio){
-    mbAudio = new Audio(mbSilentUrl());
+    mbAudio = document.createElement('audio');
+    mbAudio.src = mbSilentUrl();
     mbAudio.loop = true;
     mbAudio.setAttribute('playsinline', '');
+    mbAudio.style.display = 'none';
+    document.body.appendChild(mbAudio);
+    mbAudio.addEventListener('pause', ()=>{ if(mbOn) setTimeout(mbResume, 250); });
   }
   try{ await mbAudio.play(); }
   catch(e){ toast('Chạm vào màn hình một lần để bật Mi Band'); return false; }
@@ -2170,15 +2196,25 @@ async function mbStart(){
   mbSetHandlers(true);
   try{ navigator.mediaSession.playbackState = 'playing'; }catch(e){}
   mbUpdateMeta(); mbStatusUI();
+  if(!mbWatchId) mbWatchId = setInterval(()=>{
+    if(!mbOn) return;
+    if(mbAudio.paused) mbResume();
+    else { mbLastTitle = ''; mbUpdateMeta(); }       // nhắc lại tiêu đề cho vòng
+  }, 1500);
   return true;
 }
 function mbStop(){
   mbOn = false;
+  if(mbWatchId){ clearInterval(mbWatchId); mbWatchId = null; }
   if(mbAudio) mbAudio.pause();
   mbSetHandlers(false);
   try{ navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }catch(e){}
+  try{ if(navigator.audioSession) navigator.audioSession.type = 'auto'; }catch(e){}
   mbStatusUI();
 }
+// Mỗi lần chạm màn hình hay quay lại app cũng giành lại quyền phát.
+['pointerdown','touchstart'].forEach(e=>document.addEventListener(e, ()=>{ if(mbOn) mbResume(); }, { passive:true }));
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible' && mbOn) mbResume(); });
 
 el.mbStatus = document.getElementById('mb-status');
 el.mbTeam = document.getElementById('mb-team');
