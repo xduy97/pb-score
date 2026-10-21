@@ -397,6 +397,7 @@ body.sun #timeoutOverlay, body.sun #breakOverlay { background:rgba(255,255,255,.
     <div class="grp">
       <span id="gp-status">🎮 Chưa kết nối</span>
       <button class="linkBtn" id="wl-status" title="Giữ màn hình luôn sáng">☀️ tự khoá</button>
+      <button class="linkBtn" id="mb-status" title="Điều khiển bằng nút nhạc trên Mi Band / tai nghe">⌚ Mi Band: tắt</button>
     </div>
     <div class="grp">
       <span id="clock">00:00</span>
@@ -1508,6 +1509,7 @@ function renderCallBar(){
 function render(){
   renderHalf('left'); renderHalf('right');
   renderCallBar();
+  mbUpdateMeta();
 
   // Lớp phủ hội ý bám theo state chứ không chỉ theo lần bấm nút. Hoàn tác một
   // lượt hội ý từng để lại lớp phủ treo vĩnh viễn vì không ai gọi endTimeout.
@@ -1977,6 +1979,130 @@ window.addEventListener('gamepaddisconnected', ()=>{
     el.gpStatus.textContent = '🎮 Chưa kết nối'; el.gpStatus.classList.remove('connected');
   }
 });
+
+/* ============================================================================
+   MI BAND / NÚT NHẠC (Media Session)
+   Vòng đeo tay điều khiển nhạc của thiết bị nó đang ghép đôi. Trang phát một
+   đoạn âm thanh im lặng lặp lại để trở thành "trình phát đang chạy", rồi bắt
+   3 lệnh nhạc:  ⏮ bài trước = bên TRÁI màn hình ghi điểm
+                 ⏯ phát/dừng = hoàn tác
+                 ⏭ bài sau   = bên PHẢI màn hình ghi điểm
+   Tên "bài hát" hiển thị trên vòng = tỷ số hiện tại.
+   Dùng var (không dùng let) vì render() có thể chạy trước khi khối này nạp.
+   ========================================================================== */
+var mbAudio = null, mbOn = false, mbLastAt = 0, mbLastTitle = '';
+var MB_KEY = 'pb7_mband';
+
+/** WAV im lặng 6 giây (Chrome Android chỉ hiện điều khiển nhạc với âm thanh > 5 giây). */
+function mbSilentUrl(){
+  const rate = 8000, secs = 6, n = rate * secs;
+  const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const w = (o, s) => { for(let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8,'WAVE'); w(12,'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36,'data'); v.setUint32(40, n * 2, true);
+  // Nhiễu ±1 (không nghe thấy) thay vì số 0 tuyệt đối, để hệ điều hành không coi là "không phát gì".
+  for(let i = 0; i < n; i++) v.setInt16(44 + i * 2, (i & 1) ? 1 : -1, true);
+  return URL.createObjectURL(new Blob([buf], { type:'audio/wav' }));
+}
+
+function mbScoreTitle(){
+  if(typeof state === 'undefined' || !state || !state.teams) return 'Pickleball';
+  const a = state.teams[0], b = state.teams[1];
+  if(state.matchOver || state.gameOver) return `${a.name} ${a.score} – ${b.score} ${b.name} · hết ván`;
+  const s = state.teams[state.servingTeam].score, r = state.teams[other(state.servingTeam)].score;
+  const call = (config.scoringMode === 'rally' || isSingles()) ? `${s}-${r}` : `${s}-${r}-${state.serverNumber}`;
+  return `${call} · ${state.teams[state.servingTeam].name} giao`;
+}
+
+function mbUpdateMeta(){
+  if(!mbOn || !('mediaSession' in navigator)) return;
+  const title = mbScoreTitle();
+  if(title === mbLastTitle) return;
+  mbLastTitle = title;
+  try{
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title, artist: '⏮ trái · ⏯ hoàn tác · ⏭ phải', album: 'Pickleball Scorer',
+      artwork: [{ src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }]
+    });
+  }catch(e){}
+}
+
+/** Gom lệnh trùng: một số vòng gửi 2 sự kiện cho một lần bấm. */
+function mbRun(name, fn){
+  const now = performance.now();
+  if(now - mbLastAt < 400) return;
+  mbLastAt = now;
+  fn();
+  mbFlash(name);
+  // Giữ trình phát luôn ở trạng thái "đang phát" để lần bấm sau vẫn tới được trang.
+  if(mbAudio && mbAudio.paused) mbAudio.play().catch(()=>{});
+  try{ navigator.mediaSession.playbackState = 'playing'; }catch(e){}
+}
+function mbFlash(name){
+  el.mbStatus.textContent = '⌚ ' + name;
+  clearTimeout(mbFlash._t);
+  mbFlash._t = setTimeout(mbStatusUI, 1200);
+}
+function mbStatusUI(){
+  el.mbStatus.classList.toggle('active', mbOn);
+  el.mbStatus.textContent = mbOn ? '⌚ Mi Band: bật' : '⌚ Mi Band: tắt';
+}
+
+function mbSetHandlers(on){
+  const ms = navigator.mediaSession;
+  const set = (a, h) => { try{ ms.setActionHandler(a, h); }catch(e){} };
+  if(!on){ ['play','pause','stop','previoustrack','nexttrack','seekbackward','seekforward'].forEach(a=>set(a, null)); return; }
+  const toggle = ()=>mbRun('↩ hoàn tác', undo);
+  set('play', toggle);
+  set('pause', toggle);
+  set('stop', toggle);
+  set('previoustrack', ()=>mbRun('◀ trái +1', ()=>scoreScreenSide('left')));
+  set('nexttrack',     ()=>mbRun('phải +1 ▶', ()=>scoreScreenSide('right')));
+  // Có handler tua thì iOS đổi nút ⏮⏭ thành tua ±10 giây, nên phải tắt.
+  set('seekbackward', null);
+  set('seekforward', null);
+}
+
+async function mbStart(){
+  if(!('mediaSession' in navigator)){ toast('Trình duyệt này không hỗ trợ điều khiển nhạc'); return false; }
+  if(!mbAudio){
+    mbAudio = new Audio(mbSilentUrl());
+    mbAudio.loop = true;
+    mbAudio.setAttribute('playsinline', '');
+  }
+  try{ await mbAudio.play(); }
+  catch(e){ toast('Chạm vào màn hình một lần để bật Mi Band'); return false; }
+  mbOn = true; mbLastTitle = '';
+  mbSetHandlers(true);
+  try{ navigator.mediaSession.playbackState = 'playing'; }catch(e){}
+  mbUpdateMeta(); mbStatusUI();
+  return true;
+}
+function mbStop(){
+  mbOn = false;
+  if(mbAudio) mbAudio.pause();
+  mbSetHandlers(false);
+  try{ navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }catch(e){}
+  mbStatusUI();
+}
+
+el.mbStatus = document.getElementById('mb-status');
+el.mbStatus.addEventListener('click', async ()=>{
+  if(mbOn){ mbStop(); toast('Mi Band: TẮT'); try{ localStorage.setItem(MB_KEY, '0'); }catch(e){} return; }
+  if(await mbStart()){
+    try{ localStorage.setItem(MB_KEY, '1'); }catch(e){}
+    toast('Mi Band: BẬT — mở màn hình nhạc trên vòng: ⏮ trái · ⏯ hoàn tác · ⏭ phải', 5000);
+  }
+});
+// Đã bật từ lần trước: trình duyệt chỉ cho phát âm thanh sau một lần chạm, nên chờ lần chạm đầu.
+try{
+  if(localStorage.getItem(MB_KEY) === '1'){
+    ['pointerdown','touchstart','keydown'].forEach(e=>document.addEventListener(e, ()=>{ if(!mbOn) mbStart(); }, { once:true, passive:true }));
+  }
+}catch(e){}
+mbStatusUI();
 
 /* ============================================================================
    GIỮ MÀN HÌNH SÁNG
