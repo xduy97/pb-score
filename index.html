@@ -2041,7 +2041,8 @@ function mbUpdateMeta(){
      Trên/dưới bấm 1 lần  = đội đó thắng pha bóng (ghi ngay, không chờ)
      Trên/dưới bấm 2 lần  = đội đó được giao (lần bấm đầu tự hoàn tác)
      Giữa bấm 1 lần       = hoàn tác
-     Giữa bấm 2 lần       = ván mới (đang giữa ván thì hỏi xác nhận thêm 1 lần)
+     Giữa bấm 2 lần       = ván mới (bấm giữa 1 lần nữa để lấy lại ván cũ nếu lỡ tay)
+   Ván không tự kết thúc khi đủ điểm: chỉ dừng khi bạn bấm ván mới.
    Đang hội ý / nghỉ giữa ván: bấm nút bất kỳ = vào sân.
    Mọi lần bấm đều thực hiện NGAY; lần bấm thứ hai chỉ sửa lại kết quả lần đầu,
    nên ghi điểm không bị trễ vì phải chờ xem có bấm đúp hay không.  */
@@ -2095,7 +2096,9 @@ function mbTeamPress(which){            // which: 'opp' | 'me'
   }
   mbLastScored = false;
   if(mbBackToCourt()) return;
-  if(state.gameOver || state.matchOver){ openResult(); return; }
+  // Dùng Mi Band thì ván không tự kết thúc ở 11 — chỉ dừng khi bạn bấm đúp nút giữa.
+  if(state.gameOver || state.matchOver) playOn();
+  state.playOn = true;
   const before = past.length;
   rallyWonBy(team);
   mbLastScored = past.length > before;
@@ -2106,7 +2109,6 @@ var mbLastScored = false;
 function mbMiddlePress(){
   mbKeepPlaying();
   const now = performance.now();
-  if(now < mbConfirmUntil){ mbConfirmUntil = 0; mbLast = { btn:null, at:0 }; newMatch(); mbFlash('Ván mới'); return; }
   const dbl = mbIsDouble('mid');
   if(dbl === null) return;
   if(dbl){
@@ -2123,15 +2125,13 @@ function mbMiddlePress(){
 }
 var mbLastUndid = false;
 
+/** Ván mới ngay, không hỏi lại. Vẫn hoàn tác được (bấm giữa 1 lần) nếu lỡ tay. */
 function mbNewGame(){
-  if(state.matchOver){ newMatch(); mbFlash('Ván mới'); return; }
-  if(state.gameOver){ nextGame(); mbFlash('Ván mới'); return; }
-  const fresh = state.teams[0].score === 0 && state.teams[1].score === 0;
-  if(fresh){ newMatch(); mbFlash('Ván mới'); return; }
-  // Đang giữa ván mà xoá hết điểm thì không lấy lại được, nên hỏi thêm một lần.
-  mbConfirmUntil = performance.now() + 4000;
-  speak('Ván mới? Bấm nút giữa thêm một lần để xác nhận');
-  mbFlash('Ván mới?');
+  const snap = clone(state), keep = past.slice();
+  newMatch();                       // về 0-0, giữ tên đội và đội hình
+  keep.push(snap); past = keep; future = [];
+  save(K.state);
+  mbFlash('Ván mới');
 }
 
 function mbFlash(name){
