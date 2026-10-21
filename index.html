@@ -398,6 +398,7 @@ body.sun #timeoutOverlay, body.sun #breakOverlay { background:rgba(255,255,255,.
       <span id="gp-status">🎮 Chưa kết nối</span>
       <button class="linkBtn" id="wl-status" title="Giữ màn hình luôn sáng">☀️ tự khoá</button>
       <button class="linkBtn" id="mb-status" title="Điều khiển bằng nút nhạc trên Mi Band / tai nghe">⌚ Mi Band: tắt</button>
+      <button class="linkBtn" id="mb-team" title="Đội nào là đội của bạn (nút dưới trên vòng)">👤 Tôi: –</button>
     </div>
     <div class="grp">
       <span id="clock">00:00</span>
@@ -1984,10 +1985,9 @@ window.addEventListener('gamepaddisconnected', ()=>{
    MI BAND / NÚT NHẠC (Media Session)
    Vòng đeo tay điều khiển nhạc của thiết bị nó đang ghép đôi. Trang phát một
    đoạn âm thanh im lặng lặp lại để trở thành "trình phát đang chạy", rồi bắt
-   3 lệnh nhạc:  ⏮ bài trước = bên TRÁI màn hình ghi điểm
-                 ⏯ phát/dừng = hoàn tác
-                 ⏭ bài sau   = bên PHẢI màn hình ghi điểm
-   Tên "bài hát" hiển thị trên vòng = tỷ số hiện tại.
+   3 lệnh nhạc:  ⏮ (nút trên) = đội đối thủ · ⏭ (nút dưới) = đội tôi
+                 ⏯ (nút giữa) = sửa sai — chi tiết ở mbTeamPress / mbMiddlePress
+   Tên "bài hát" hiển thị trên vòng = tỷ số ngắn gọn, ví dụ 0-0-2.
    Dùng var (không dùng let) vì render() có thể chạy trước khi khối này nạp.
    ========================================================================== */
 var mbAudio = null, mbOn = false, mbLastAt = 0, mbLastTitle = '';
@@ -2008,38 +2008,128 @@ function mbSilentUrl(){
 }
 
 function mbScoreTitle(){
-  if(typeof state === 'undefined' || !state || !state.teams) return 'Pickleball';
+  // Ngắn gọn để vòng hiển thị đứng yên, không chạy chữ.
+  if(typeof state === 'undefined' || !state || !state.teams) return '0-0-2';
   const a = state.teams[0], b = state.teams[1];
-  if(state.matchOver || state.gameOver) return `${a.name} ${a.score} – ${b.score} ${b.name} · hết ván`;
+  if(state.matchOver) return `XONG ${a.score}-${b.score}`;
+  if(state.gameOver)  return `HẾT ${a.score}-${b.score}`;
   const s = state.teams[state.servingTeam].score, r = state.teams[other(state.servingTeam)].score;
-  const call = (config.scoringMode === 'rally' || isSingles()) ? `${s}-${r}` : `${s}-${r}-${state.serverNumber}`;
-  return `${call} · ${state.teams[state.servingTeam].name} giao`;
+  return (config.scoringMode === 'rally' || isSingles()) ? `${s}-${r}` : `${s}-${r}-${state.serverNumber}`;
 }
 
 function mbUpdateMeta(){
   if(!mbOn || !('mediaSession' in navigator)) return;
+  if(el.mbTeam) mbTeamUI();
   const title = mbScoreTitle();
   if(title === mbLastTitle) return;
   mbLastTitle = title;
   try{
     navigator.mediaSession.metadata = new MediaMetadata({
-      title, artist: '⏮ trái · ⏯ hoàn tác · ⏭ phải', album: 'Pickleball Scorer',
+      title, artist: '', album: '',
       artwork: [{ src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }]
     });
   }catch(e){}
 }
 
-/** Gom lệnh trùng: một số vòng gửi 2 sự kiện cho một lần bấm. */
-function mbRun(name, fn){
-  const now = performance.now();
-  if(now - mbLastAt < 400) return;
-  mbLastAt = now;
-  fn();
-  mbFlash(name);
-  // Giữ trình phát luôn ở trạng thái "đang phát" để lần bấm sau vẫn tới được trang.
+/* Chỉ phục vụ tình huống trong lúc đánh, không cần chạm vào máy.
+   Nút TRÊN  (⏮) = đội ĐỐI THỦ, nút DƯỚI (⏭) = ĐỘI TÔI, nút GIỮA (⏯) = sửa sai.
+     Trên/dưới bấm 1 lần  = đội đó thắng pha bóng (ghi ngay, không chờ)
+     Trên/dưới bấm 2 lần  = đội đó được giao (lần bấm đầu tự hoàn tác)
+     Giữa bấm 1 lần       = hoàn tác
+     Giữa bấm 2 lần       = ván mới (đang giữa ván thì hỏi xác nhận thêm 1 lần)
+   Đang hội ý / nghỉ giữa ván: bấm nút bất kỳ = vào sân.
+   Mọi lần bấm đều thực hiện NGAY; lần bấm thứ hai chỉ sửa lại kết quả lần đầu,
+   nên ghi điểm không bị trễ vì phải chờ xem có bấm đúp hay không.  */
+var MB_DOUBLE_MS = 700;
+var MB_TEAM_KEY = 'pb7_mband_myteam';
+var mbMyTeam = 0;
+try{ mbMyTeam = localStorage.getItem(MB_TEAM_KEY) === '1' ? 1 : 0; }catch(e){}
+var mbLast = { btn:null, at:0, did:false }, mbConfirmUntil = 0;
+
+/** Đang hội ý hoặc nghỉ giữa ván thì mọi nút đều là "vào sân". */
+function mbBackToCourt(){
+  if(inBreak()){ endBreak(false); mbFlash('vào sân'); return true; }
+  if(inTimeout()){ endTimeout(false); mbFlash('vào sân'); return true; }
+  return false;
+}
+function mbKeepPlaying(){
   if(mbAudio && mbAudio.paused) mbAudio.play().catch(()=>{});
   try{ navigator.mediaSession.playbackState = 'playing'; }catch(e){}
 }
+/** Trả về true nếu đây là lần bấm thứ hai liền sau lần bấm cùng nút. */
+function mbIsDouble(btn){
+  const now = performance.now();
+  if(mbLast.btn === btn && now - mbLast.at < 150) return null;   // sự kiện trùng
+  const dbl = mbLast.btn === btn && now - mbLast.at < MB_DOUBLE_MS;
+  mbLast = { btn: dbl ? null : btn, at: now, did:false };
+  return dbl;
+}
+
+function mbGiveServe(team){
+  const n = state.teams[team].name;
+  if(state.gameOver || state.matchOver) return;
+  if(state.servingTeam === team){ speak(n + ' đang giao'); return; }
+  if(state.openingServe){ flipFirstServer(); return; }
+  pushHistory();
+  sideOutTo(team);
+  commit(); speakServe(); startServeClock();
+  toast(n + ' giao bóng');
+}
+
+function mbTeamPress(which){            // which: 'opp' | 'me'
+  mbKeepPlaying();
+  const team = which === 'me' ? mbMyTeam : other(mbMyTeam);
+  const dbl = mbIsDouble(which);
+  if(dbl === null) return;
+  if(dbl){
+    if(mbLastScored) undo();              // bỏ điểm vừa ghi ở lần bấm đầu
+    mbLastScored = false;
+    mbGiveServe(team);
+    mbFlash(state.teams[team].name + ' giao');
+    return;
+  }
+  mbLastScored = false;
+  if(mbBackToCourt()) return;
+  if(state.gameOver || state.matchOver){ openResult(); return; }
+  const before = past.length;
+  rallyWonBy(team);
+  mbLastScored = past.length > before;
+  mbFlash(state.teams[team].name + ' +1');
+}
+var mbLastScored = false;
+
+function mbMiddlePress(){
+  mbKeepPlaying();
+  const now = performance.now();
+  if(now < mbConfirmUntil){ mbConfirmUntil = 0; mbLast = { btn:null, at:0 }; newMatch(); mbFlash('ván mới'); return; }
+  const dbl = mbIsDouble('mid');
+  if(dbl === null) return;
+  if(dbl){
+    if(mbLastUndid) redo();               // trả lại bước vừa hoàn tác ở lần bấm đầu
+    mbLastUndid = false;
+    mbNewGame();
+    return;
+  }
+  mbLastUndid = false;
+  if(mbBackToCourt()) return;
+  if(!past.length){ toast('Không còn gì để hoàn tác'); return; }
+  undo(); speak('Hoàn tác'); mbLastUndid = true;
+  mbFlash('hoàn tác');
+}
+var mbLastUndid = false;
+
+function mbNewGame(){
+  if(state.matchOver){ newMatch(); mbFlash('ván mới'); return; }
+  if(state.gameOver){ nextGame(); mbFlash('ván mới'); return; }
+  const fresh = state.teams[0].score === 0 && state.teams[1].score === 0;
+  if(fresh){ newMatch(); mbFlash('ván mới'); return; }
+  // Đang giữa ván mà xoá hết điểm thì không lấy lại được, nên hỏi thêm một lần.
+  mbConfirmUntil = performance.now() + 4000;
+  speak('Ván mới? Bấm nút giữa thêm một lần để xác nhận');
+  toast('Ván mới? Bấm ⏯ thêm 1 lần trong 4 giây để xác nhận', 4000);
+  mbFlash('xác nhận?');
+}
+
 function mbFlash(name){
   el.mbStatus.textContent = '⌚ ' + name;
   clearTimeout(mbFlash._t);
@@ -2048,18 +2138,18 @@ function mbFlash(name){
 function mbStatusUI(){
   el.mbStatus.classList.toggle('active', mbOn);
   el.mbStatus.textContent = mbOn ? '⌚ Mi Band: bật' : '⌚ Mi Band: tắt';
+  if(el.mbTeam) mbTeamUI();
 }
 
 function mbSetHandlers(on){
   const ms = navigator.mediaSession;
   const set = (a, h) => { try{ ms.setActionHandler(a, h); }catch(e){} };
   if(!on){ ['play','pause','stop','previoustrack','nexttrack','seekbackward','seekforward'].forEach(a=>set(a, null)); return; }
-  const toggle = ()=>mbRun('↩ hoàn tác', undo);
-  set('play', toggle);
-  set('pause', toggle);
-  set('stop', toggle);
-  set('previoustrack', ()=>mbRun('◀ trái +1', ()=>scoreScreenSide('left')));
-  set('nexttrack',     ()=>mbRun('phải +1 ▶', ()=>scoreScreenSide('right')));
+  set('play', mbMiddlePress);
+  set('pause', mbMiddlePress);
+  set('stop', mbMiddlePress);
+  set('previoustrack', ()=>mbTeamPress('opp'));   // nút trên
+  set('nexttrack',     ()=>mbTeamPress('me'));    // nút dưới
   // Có handler tua thì iOS đổi nút ⏮⏭ thành tua ±10 giây, nên phải tắt.
   set('seekbackward', null);
   set('seekforward', null);
@@ -2089,11 +2179,23 @@ function mbStop(){
 }
 
 el.mbStatus = document.getElementById('mb-status');
+el.mbTeam = document.getElementById('mb-team');
+function mbTeamUI(){
+  const t = (typeof state !== 'undefined' && state && state.teams) ? state.teams[mbMyTeam].name : (mbMyTeam ? 'Đội 2' : 'Đội 1');
+  el.mbTeam.textContent = '👤 Tôi: ' + t;
+  el.mbTeam.hidden = !mbOn;
+}
+el.mbTeam.addEventListener('click', ()=>{
+  mbMyTeam = other(mbMyTeam);
+  try{ localStorage.setItem(MB_TEAM_KEY, String(mbMyTeam)); }catch(e){}
+  mbTeamUI();
+  toast('Nút dưới = ' + state.teams[mbMyTeam].name + ' · nút trên = ' + state.teams[other(mbMyTeam)].name, 3500);
+});
 el.mbStatus.addEventListener('click', async ()=>{
   if(mbOn){ mbStop(); toast('Mi Band: TẮT'); try{ localStorage.setItem(MB_KEY, '0'); }catch(e){} return; }
   if(await mbStart()){
     try{ localStorage.setItem(MB_KEY, '1'); }catch(e){}
-    toast('Mi Band: BẬT — mở màn hình nhạc trên vòng: ⏮ trái · ⏯ hoàn tác · ⏭ phải', 5000);
+    toast('Mi Band: BẬT — trên: ' + state.teams[other(mbMyTeam)].name + ' · dưới: ' + state.teams[mbMyTeam].name + ' · bấm đúp = được giao · giữa: hoàn tác, đúp = ván mới', 6000);
   }
 });
 // Đã bật từ lần trước: trình duyệt chỉ cho phát âm thanh sau một lần chạm, nên chờ lần chạm đầu.
